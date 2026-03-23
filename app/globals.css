@@ -1,0 +1,59 @@
+:root {
+  --red: #C0392B;
+  --red-dark: #8B1A10;
+  --gold: #D4AC0D;
+  --gold-dim: rgba(212,172,13,0.3);
+  --gold-glow: rgba(212,172,13,0.5);
+  --blue: #1A5276;
+  --blue-bright: #2E86C1;
+  --cyan: #00BCD4;
+  --green: #1E8449;
+  --green-bright: #27AE60;
+  --purple: #6C3483;
+  --purple-bright: #9B59B6;
+  --bg: #04060C;
+  --bg2: #070C18;
+  --bg3: #0A1020;
+  --panel: #0D1428;
+  --panel2: #0F1830;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #C8D8E8;
+  --text-dim: #7A90A8;
+  --text-bright: #E8F0F8;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Rajdhani', sans-serif;
+  --body: 'Exo 2', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  overflow: hidden;
+}
+
+#__next {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+input, textarea, select { color: var(--text); }
+button { cursor: pointer; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
