@@ -765,17 +765,23 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 // ─────────────────────────────────────────────────────────────────────────────
 // CHARACTERS VIEW
 // ─────────────────────────────────────────────────────────────────────────────
-function CharactersView() {
+function CharactersView({ isGm, playerCharId }: { isGm: boolean; playerCharId: string | null }) {
   const [chars, setChars]     = useState<any[]>([])
   const [activeId, setActiveId] = useState<string|null>(null)
   const [saving, setSaving]   = useState(false)
   const [loading, setLoading] = useState(true)
 
+  const visibleChars  = isGm ? chars : chars.filter(c=>c.id===playerCharId)
   const activeChar    = chars.find(c=>c.id===activeId)
   const debouncedChar = useDebounce(activeChar, 1000)
 
   useEffect(() => {
-    api('/api/characters').then(d=>{setChars(d);setLoading(false)}).catch(()=>setLoading(false))
+    api('/api/characters').then(d=>{
+      setChars(d)
+      // Players auto-select their own character
+      if (!isGm && playerCharId) setActiveId(playerCharId)
+      setLoading(false)
+    }).catch(()=>setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -810,20 +816,22 @@ function CharactersView() {
         <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
                      display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
-                       letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Characters</div>
-          <button onClick={addChar}
-            style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
-                    background:'var(--panel)',color:'var(--text-dim)',fontSize:18,cursor:'pointer',
-                    display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+                       letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>{isGm ? 'Characters' : 'My Character'}</div>
+          {isGm && (
+            <button onClick={addChar}
+              style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
+                      background:'var(--panel)',color:'var(--text-dim)',fontSize:18,cursor:'pointer',
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+          )}
         </div>
         <div style={{flex:1,overflowY:'auto',padding:8}}>
           {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>Loading...</div>}
-          {!loading&&chars.length===0 && (
+          {!loading&&visibleChars.length===0 && (
             <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>
-              No characters yet.<br/>Click + to create one.
+              {isGm ? <>{`No characters yet.`}<br/>{`Click + to create one.`}</> : 'No character assigned yet.'}
             </div>
           )}
-          {chars.map(c=>{
+          {visibleChars.map(c=>{
             const col=CHAR_COLORS[c.colorIdx]||CHAR_COLORS[0]
             const ini=(c.name||'??').split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()||'??'
             return (
@@ -841,8 +849,10 @@ function CharactersView() {
                   <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:600,color:'var(--text-bright)'}}>{c.name}</div>
                   <div style={{fontSize:10,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
                 </div>
-                <button onClick={e=>{e.stopPropagation();deleteChar(c.id)}}
-                  style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:14,cursor:'pointer'}}>×</button>
+                {isGm && (
+                  <button onClick={e=>{e.stopPropagation();deleteChar(c.id)}}
+                    style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:14,cursor:'pointer'}}>×</button>
+                )}
               </div>
             )
           })}
@@ -860,11 +870,11 @@ function CharactersView() {
         : (
           <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
                        justifyContent:'center',gap:12,color:'var(--text-dim)',background:'var(--bg)'}}>
-            <div style={{fontSize:48,opacity:0.3}}>⚡</div>
+            <div style={{fontSize:48,opacity:0.3}}>◈</div>
             <div style={{fontFamily:'var(--display)',fontSize:16,letterSpacing:'0.08em'}}>
-              Select or create a character
+              {isGm ? 'Select or create a character' : 'No character assigned'}
             </div>
-            <Btn variant="primary" onClick={addChar}>Create Character</Btn>
+            {isGm && <Btn variant="primary" onClick={addChar}>Create Character</Btn>}
           </div>
         )
       }
@@ -1417,7 +1427,171 @@ function GMDashboard() {
             placeholder="Session notes, NPC states, ongoing threads, player decisions to remember..."/>
         </GmCard>
 
+        {/* Player Accounts */}
+        <GmCard title="Player Accounts" col={3}>
+          <PlayerAccountsCard/>
+        </GmCard>
+
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }: { onLogin: (auth: {username:string,role:string,characterId:string}) => void }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError]       = useState('')
+  const [loading, setLoading]   = useState(false)
+
+  async function submit(e: { preventDefault(): void }) {
+    e.preventDefault()
+    setLoading(true); setError('')
+    try {
+      const res  = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username, password}),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Login failed'); setLoading(false); return }
+      onLogin(data)
+    } catch {
+      setError('Network error — check your connection')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+                 background:'var(--bg)',flexDirection:'column',gap:0}}>
+      <div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:700,color:'var(--gold)',
+                   letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:6}}>
+        Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
+      </div>
+      <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',
+                   letterSpacing:'0.12em',marginBottom:32}}>SECURE ACCESS TERMINAL</div>
+
+      <form onSubmit={submit}
+        style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:10,
+                padding:'28px 32px',width:320,display:'flex',flexDirection:'column',gap:16}}>
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+                       letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Username</div>
+          <input value={username} onChange={e=>setUsername(e.target.value)}
+            autoFocus autoComplete="username"
+            style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
+                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,
+                    outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        <div>
+          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+                       letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Password</div>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
+            autoComplete="current-password"
+            style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
+                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,
+                    outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        {error && (
+          <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--red)',
+                       background:'rgba(192,57,43,0.1)',border:'1px solid rgba(192,57,43,0.3)',
+                       borderRadius:5,padding:'7px 10px'}}>{error}</div>
+        )}
+        <button type="submit" disabled={loading}
+          style={{marginTop:4,padding:'10px',borderRadius:6,border:'1px solid rgba(212,172,13,0.5)',
+                  background:'rgba(212,172,13,0.12)',color:'var(--gold)',fontFamily:'var(--display)',
+                  fontSize:13,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
+                  cursor:loading?'wait':'pointer',opacity:loading?0.6:1}}>
+          {loading ? 'Authenticating…' : 'Sign In'}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PLAYER ACCOUNTS (GM-only panel inside GMDashboard)
+// ─────────────────────────────────────────────────────────────────────────────
+function PlayerAccountsCard() {
+  const [users, setUsers]   = useState<any[]>([])
+  const [chars, setChars]   = useState<any[]>([])
+  const [form, setForm]     = useState({username:'',password:'',characterId:''})
+  const [error, setError]   = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([api('/api/auth/users'), api('/api/characters')])
+      .then(([u,c]) => { setUsers(u); setChars(c); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  async function createUser() {
+    if (!form.username || !form.password) { setError('Username and password required'); return }
+    setError('')
+    try {
+      await api('/api/auth/users','POST',{...form, role:'player'})
+      const u = await api('/api/auth/users')
+      setUsers(u)
+      setForm({username:'',password:'',characterId:''})
+    } catch (e: any) { setError(e.message) }
+  }
+
+  async function deleteUser(id: string) {
+    await api(`/api/auth/users/${id}`,'DELETE')
+    setUsers(u=>u.filter((x:any)=>x.id!==id))
+  }
+
+  async function linkChar(userId: string, characterId: string) {
+    await api(`/api/auth/users/${userId}`,'PATCH',{characterId})
+    setUsers(u=>u.map((x:any)=>x.id===userId?{...x,character_id:characterId}:x))
+  }
+
+  if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:11}}>Loading…</div>
+
+  return (
+    <div>
+      {/* Existing users */}
+      {users.filter((u:any)=>u.role==='player').length===0 && (
+        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
+      )}
+      {users.filter((u:any)=>u.role==='player').map((u:any) => (
+        <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',
+                                borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+          <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
+          <select value={u.character_id||''} onChange={e=>linkChar(u.id,e.target.value)}
+            style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
+                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}>
+            <option value=''>— no character —</option>
+            {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <button onClick={()=>deleteUser(u.id)}
+            style={{background:'none',border:'none',color:'var(--red)',fontSize:14,cursor:'pointer',flexShrink:0}}>×</button>
+        </div>
+      ))}
+
+      {/* Create player */}
+      <div style={{marginTop:14,display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
+        <input placeholder="username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}
+          style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}/>
+        <input placeholder="password" type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
+          style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}/>
+        <select value={form.characterId} onChange={e=>setForm(f=>({...f,characterId:e.target.value}))}
+          style={{flex:'1 1 110px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}>
+          <option value=''>— no character —</option>
+          {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <button onClick={createUser}
+          style={{padding:'6px 14px',borderRadius:4,border:'1px solid rgba(212,172,13,0.4)',
+                  background:'rgba(212,172,13,0.1)',color:'var(--gold)',fontFamily:'var(--display)',
+                  fontSize:11,fontWeight:700,letterSpacing:'0.08em',cursor:'pointer'}}>Add Player</button>
+      </div>
+      {error && <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:11,color:'var(--red)'}}>{error}</div>}
     </div>
   )
 }
@@ -1426,32 +1600,64 @@ function GMDashboard() {
 // ROOT APP
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tab, setTab]             = useState('gm')
+  const [tab, setTab]               = useState('gm')
   const [showHidden, setShowHidden] = useState(false)
-  const [topHeat, setTopHeat]     = useState(0)
+  const [topHeat, setTopHeat]       = useState(0)
   const [topSession, setTopSession] = useState(1)
-  const [ready, setReady]         = useState(false)
+  const [ready, setReady]           = useState(false)
+  const [auth, setAuth]             = useState<{username:string,role:string,characterId:string}|null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
 
-  // Bootstrap DB schema on first load, then fetch campaign for topbar
+  // On mount: init DB tables, then check if already logged in
   useEffect(() => {
     fetch('/api/init', {method:'POST'})
-      .then(() => api('/api/campaign'))
-      .then(d => { setTopHeat(d.heatLevel||0); setTopSession(d.session||1); setReady(true) })
-      .catch(() => setReady(true))
+      .then(() => api('/api/auth/me'))
+      .then(user => {
+        setAuth(user)
+        if (user.role === 'player') setTab('galaxy')
+        setAuthChecked(true)
+      })
+      .catch(() => setAuthChecked(true))
   }, [])
 
-  // Refresh topbar values when switching tabs
+  // Fetch campaign data once authenticated
+  useEffect(() => {
+    if (!auth) return
+    api('/api/campaign')
+      .then(d => { setTopHeat(d.heatLevel||0); setTopSession(d.session||1); setReady(true) })
+      .catch(() => setReady(true))
+  }, [auth])
+
+  // Refresh topbar when switching tabs
   useEffect(() => {
     if (!ready) return
     api('/api/campaign').then(d=>{ setTopHeat(d.heatLevel||0); setTopSession(d.session||1) }).catch(()=>{})
   }, [tab, ready])
 
-  const TABS = [
-    {id:'gm',         label:'GM Dashboard', icon:'⚙'},
-    {id:'galaxy',     label:'Galaxy Map',   icon:'✦'},
-    {id:'chars',      label:'Characters',   icon:'◈'},
-    {id:'initiative', label:'Initiative',   icon:'⚡'},
+  async function logout() {
+    await fetch('/api/auth/logout', {method:'POST'}).catch(()=>{})
+    setAuth(null); setReady(false); setTab('gm')
+  }
+
+  const isGm = auth?.role === 'gm'
+
+  const ALL_TABS = [
+    {id:'gm',         label:'GM Dashboard', icon:'⚙',  gmOnly:true},
+    {id:'galaxy',     label:'Galaxy Map',   icon:'✦',  gmOnly:false},
+    {id:'chars',      label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false},
+    {id:'initiative', label:'Initiative',   icon:'⚡', gmOnly:true},
   ]
+  const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
+
+  // Loading spinner while checking session
+  if (!authChecked) return (
+    <div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+                 background:'var(--bg)',color:'var(--text-dim)',fontFamily:'var(--mono)',gap:12}}>
+      <span style={{animation:'pulse 1s ease-in-out infinite'}}>●</span> Initialising…
+    </div>
+  )
+
+  if (!auth) return <LoginScreen onLogin={user => { setAuth(user); if (user.role==='player') setTab('galaxy') }}/>
 
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
@@ -1482,7 +1688,7 @@ export default function App() {
         </nav>
 
         <div style={{display:'flex',alignItems:'center',gap:14,marginLeft:'auto'}}>
-          {tab==='galaxy' && (
+          {isGm && tab==='galaxy' && (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div onClick={()=>setShowHidden(h=>!h)}
                 style={{width:36,height:20,borderRadius:10,cursor:'pointer',transition:'background 0.2s',
@@ -1509,6 +1715,18 @@ export default function App() {
                        borderRadius:4,padding:'3px 8px'}}>
             Session {topSession}
           </div>
+          {/* User badge + logout */}
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>{auth.username}</span>
+            <span style={{fontFamily:'var(--mono)',fontSize:10,borderRadius:3,padding:'2px 6px',
+                          background:isGm?'rgba(212,172,13,0.1)':'rgba(74,144,226,0.1)',
+                          border:`1px solid ${isGm?'rgba(212,172,13,0.3)':'rgba(74,144,226,0.3)'}`,
+                          color:isGm?'var(--gold)':'#4a90e2'}}>{isGm?'GM':'PLAYER'}</span>
+            <button onClick={logout}
+              style={{padding:'3px 10px',borderRadius:4,border:'1px solid var(--border)',
+                      background:'var(--panel)',color:'var(--text-dim)',fontFamily:'var(--display)',
+                      fontSize:11,fontWeight:600,letterSpacing:'0.06em',cursor:'pointer'}}>Sign Out</button>
+          </div>
         </div>
       </div>
 
@@ -1522,8 +1740,8 @@ export default function App() {
           </div>
         )}
         {ready && tab==='gm'         && <div style={{height:'100%',overflowY:'auto'}}><GMDashboard/></div>}
-        {ready && tab==='galaxy'     && <GalaxyMap showHidden={showHidden}/>}
-        {ready && tab==='chars'      && <CharactersView/>}
+        {ready && tab==='galaxy'     && <GalaxyMap showHidden={isGm && showHidden}/>}
+        {ready && tab==='chars'      && <CharactersView isGm={!!isGm} playerCharId={isGm ? null : (auth.characterId||null)}/>}
         {ready && tab==='initiative' && <InitiativeTracker/>}
       </div>
     </div>

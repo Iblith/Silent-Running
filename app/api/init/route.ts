@@ -4,17 +4,18 @@
 // Safe to run multiple times — uses CREATE TABLE IF NOT EXISTS.
 
 import { NextResponse } from 'next/server'
+import { hashPassword } from '@/lib/auth'
 
 const CF      = process.env.CF_ACCOUNT_ID!
 const KEY     = process.env.CF_API_TOKEN!
 const DB_ID   = process.env.CF_D1_DATABASE_ID!
 const BASE    = `https://api.cloudflare.com/client/v4/accounts/${CF}/d1/database/${DB_ID}/query`
 
-async function run(sql: string) {
+async function run(sql: string, params: any[] = []) {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sql, params: [] }),
+    body: JSON.stringify({ sql, params }),
     cache: 'no-store',
   })
   const json = await res.json()
@@ -102,8 +103,37 @@ export async function POST() {
       created_at TEXT DEFAULT (datetime('now'))
     )`)
 
+    await run(`CREATE TABLE IF NOT EXISTS users (
+      id             TEXT PRIMARY KEY,
+      username       TEXT UNIQUE NOT NULL,
+      password_hash  TEXT NOT NULL,
+      role           TEXT DEFAULT 'player',
+      character_id   TEXT DEFAULT ''
+    )`)
+
+    await run(`CREATE TABLE IF NOT EXISTS sessions (
+      token      TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    )`)
+
     await run(`INSERT OR IGNORE INTO campaign_state (id) VALUES ('main')`)
     await run(`INSERT OR IGNORE INTO initiative_state (id) VALUES ('main')`)
+
+    // Seed default GM account if none exists.
+    // Set GM_USERNAME / GM_PASSWORD env vars before first deploy (defaults: gm / changeme).
+    const gmRows = await run(`SELECT id FROM users WHERE role = 'gm' LIMIT 1`)
+    if (!gmRows.result?.[0]?.results?.length) {
+      const gmUser = process.env.GM_USERNAME || 'gm'
+      const gmPass = process.env.GM_PASSWORD || 'changeme'
+      const hash   = await hashPassword(gmPass)
+      const id     = crypto.randomUUID()
+      await run(
+        `INSERT OR IGNORE INTO users (id, username, password_hash, role) VALUES (?,?,?,'gm')`,
+        [id, gmUser, hash]
+      )
+      console.log(`[init] GM account seeded — username: "${gmUser}"`)
+    }
 
     return NextResponse.json({ ok: true, message: 'Database schema initialised successfully.' })
   } catch (e: any) {
