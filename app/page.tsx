@@ -9,11 +9,13 @@ const CHAR_COLORS = ['#2E86C1','#1E8449','#C0392B','#6C3483','#D4AC0D','#E67E22'
 const SKILL_CHAR: Record<string,string> = {
   'Astrogation':'Int','Athletics':'Br','Brawl':'Br','Charm':'Pr','Coercion':'Wi',
   'Computers':'Int','Cool':'Pr','Coordination':'Ag','Deception':'Cu','Discipline':'Wi',
-  'Gunnery':'Ag','Leadership':'Pr','Mechanics':'Int','Medicine':'Int','Melee':'Br',
+  'Gunnery':'Ag','Leadership':'Pr','Lightsaber':'Br','Mechanics':'Int','Medicine':'Int','Melee':'Br',
   'Perception':'Cu','Piloting (Planetary)':'Ag','Piloting (Space)':'Ag',
   'Ranged (Heavy)':'Ag','Ranged (Light)':'Ag','Resilience':'Br','Skulduggery':'Cu',
   'Stealth':'Ag','Streetwise':'Cu','Survival':'Cu','Vigilance':'Wi',
 }
+// Ordered list of characteristic abbreviations used to cycle skill links
+const CHAR_ABBR_CYCLE = ['Br','Ag','Int','Cu','Wi','Pr']
 
 const CHAR_ABBR: Record<string,string> = {
   Brawn:'Br',Agility:'Ag',Intellect:'Int',Cunning:'Cu',Willpower:'Wi',Presence:'Pr'
@@ -125,6 +127,585 @@ const TYPE_META: Record<string,{color:string,label:string}> = {
   hidden:  {color:'#ab47bc',label:'Hidden Installation'},
   waypoint:{color:'#78909c',label:'Waypoint / Fuel'},
   hazard:  {color:'#f06292',label:'Hazard Zone'},
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOCATION DATA  (sourced from location_guide.pdf)
+// ─────────────────────────────────────────────────────────────────────────────
+const LOCATION_DATA: Record<string,{
+  overview:string; atmosphere:string;
+  poi:{name:string;desc:string}[];
+  shops:{name:string;type:string;desc:string;inventory?:string}[];
+  npcs:{key:string;name:string;role:string;desc:string;hook?:string}[];
+  quests:{name:string;type:string;difficulty:string;reward:string;desc:string;gmHook:string}[];
+  dmNotes?:string;
+}> = {
+  base:{
+    overview:"Kal'Shara Station is a hidden Rebel base concealed within a hollowed-out asteroid in the Outer Rim. It serves as the operational headquarters for the Silent Running cell, housing command, medical, and technical facilities.",
+    atmosphere:"Cold durasteel corridors humming with recycled air. The constant flicker of status consoles and the distant clank of maintenance droids. Everyone here knows the Empire could find them at any moment.",
+    poi:[
+      {name:"Command Center",desc:"The nerve centre of the base — holographic star maps, communication arrays, and tactical terminals. General Cracken runs briefings here."},
+      {name:"Med Bay",desc:"Dr. Yara Senn's domain. Fully equipped for combat triage and long-term care. A bacta tank sits in the corner, always warm."},
+      {name:"Hangar Bay",desc:"Room for six starfighters and two transports. Currently holds the cell's X-wings, a YT-1300 freighter, and a captured Lambda shuttle."},
+      {name:"Crew Quarters",desc:"Cramped but clean. Lira Tessek keeps morale high with improvised decorations and scheduled social hours."},
+      {name:"Armory",desc:"Weapons, explosives, and field gear. Strictly logged. Lira manages the inventory."},
+    ],
+    shops:[
+      {name:"Supply Depot",type:"Supplies & Equipment",desc:"Basic survival gear, rations, and field equipment. Run by maintenance droid R4-P9.",inventory:"Rations (Enc 1, 5cr), Macrobinoculars (Enc 1, 75cr), Comm unit (Enc 1, 25cr), Medpac (Enc 2, 100cr)"},
+    ],
+    npcs:[
+      {key:"cracken",name:"General Airen Cracken",role:"Rebel Intelligence Chief",desc:"A weathered veteran of a dozen campaigns, Cracken never wastes words. He assigns missions and debriefs operatives with quiet intensity."},
+      {key:"yara",name:"Dr. Yara Senn",role:"Chief Medical Officer",desc:"A former Imperial medic who defected after witnessing an atrocity on Ghorman. Brilliant, sardonic, and fiercely protective of her patients.",hook:"Secretly intercepting Imperial medical supply shipments through a contact she won't name. She fears her past will catch up with her."},
+      {key:"lira",name:"Lira Tessek",role:"Quartermaster / Morale Officer",desc:"Admiral Tessek's estranged daughter. She never talks about her father. Efficient, warm, and quietly furious about the Empire.",hook:"Has received an encrypted message from someone claiming to be her father's aide. She hasn't opened it."},
+    ],
+    quests:[
+      {name:"Supply Run",type:"Logistics",difficulty:"Average (2 difficulty)",reward:"500 cr + 10 XP",desc:"The base is running low on bacta and power cells. A supply cache on Ord Mantell has been identified — get in, grab the supplies, get out before Imperial patrols notice.",gmHook:"The supply cache is being watched by ISB Agent Sollus, who suspects a Rebel contact in the area. The PCs may be walking into a trap."},
+      {name:"Signal Ghost",type:"Investigation",difficulty:"Hard (3 difficulty)",reward:"15 XP",desc:"A faint, repeating signal is being picked up on an encrypted Rebel frequency. It could be a survivor, a distress beacon, or an Imperial lure. Trace the source.",gmHook:"The signal is from a Rebel courier droid shot down eight months ago. Its memory banks contain the identities of three deep-cover agents the Empire doesn't know about yet."},
+    ],
+    dmNotes:"The base's location is known only to senior command. If the Imperials ever get a nav-lock from a captured ship, the entire cell has 48 hours before a Star Destroyer arrives. Lira's father (Admiral Vorn Tessek) is actively searching for her — he believes she was kidnapped by Rebels. This is a slow-burn revelation for Act 2. General Cracken knows about the Tessek situation and is watching to see how the PCs handle it.",
+  },
+  ryloth:{
+    overview:"Ryloth is the arid, tidally-locked homeworld of the Twi'lek species. The Imperial occupation is harsh but thin outside major cities — desert canyons and hidden villages shelter rebel sympathisers and resistance cells.",
+    atmosphere:"Hot, dusty winds carry the scent of mineral deposits and hard lives. The cities are under Imperial curfew. The villages beyond the patrol lanes feel ancient and defiant.",
+    poi:[
+      {name:"Lessu",desc:"The capital city, heavily garrisoned. Imperial AT-STs patrol the main boulevards. A black market operates beneath the surface through a network of Twi'lek guides."},
+      {name:"The Shadow Caves",desc:"A labyrinthine cave network used by resistance fighters. Known to local guides — not on any Imperial map."},
+      {name:"Mira's Cantina",desc:"A low-lit drinking establishment in the outskirts of Lessu, nominally neutral territory. Actually a Rebel safe house run by Mira Volante."},
+    ],
+    shops:[
+      {name:"Mira's Cantina",type:"Cantina / Black Market",desc:"Food, drink, and discrete transactions. Mira Volante has access to weapons and information for the right price.",inventory:"Blaster pistol (Enc 1, 400cr), Stun grenades x2 (Enc 1, 50cr each), Encrypted comlink (Enc 1, 150cr), Local guides (service, 100cr/day)"},
+    ],
+    npcs:[
+      {key:"mira",name:"Mira Volante",role:"Rebel Contact / Black Market Dealer",desc:"A sharp-tongued human woman who has lived on Ryloth for a decade. She speaks fluent Ryl and knows every underground route on the planet. She's been burned before and trust doesn't come easy.",hook:"Mira is feeding information to both the Rebel cell AND a neutral crime syndicate. She believes she's playing both sides safely. She's wrong."},
+    ],
+    quests:[
+      {name:"Free the Hostages",type:"Rescue",difficulty:"Hard (3 difficulty)",reward:"800 cr + 20 XP",desc:"Imperial forces have arrested twelve Twi'lek villagers suspected of harbouring rebels. They're being held in a garrison outpost outside Lessu before transfer to an off-world detention facility. Extract them before the transport arrives.",gmHook:"One of the hostages is the uncle of a local resistance leader. If he dies, that leader takes revenge in a way that blows the Rebel cell's cover."},
+      {name:"Ghost Frequency",type:"Intelligence",difficulty:"Average (2 difficulty)",reward:"10 XP",desc:"Intercept an Imperial coded transmission being broadcast from a relay station in the hills above Lessu. Mira has the coordinates. The Empire must not know it was compromised.",gmHook:"The transmission contains troop deployment orders for a major Outer Rim sweep — including one that will uncover Haven Alpha if not countered."},
+    ],
+    dmNotes:"Imperial garrison at Lessu is at 60% strength — a battalion was recently redeployed to Kessel. Window of relative weakness: roughly 3 sessions. Mira's double-dealing will surface in Act 2 when the syndicate asks her to sell the party's identities.",
+  },
+  ordmant:{
+    overview:"Ord Mantell is a lawless junkyard of a planet — a core world gone to seed. Imperial presence is concentrated around the spaceport and military outpost. The rest is scrapyards, gambling dens, and bounty hunter haunts.",
+    atmosphere:"The air smells of ozone, grease, and stale beer. Everyone here is running from something or hunting someone. The Empire stays in its lane as long as credits keep moving.",
+    poi:[
+      {name:"Worlport Spaceport",desc:"The planet's main port of entry. Imperial customs checkpoint on the main docking bay. Bribes widely accepted."},
+      {name:"The Scrap Yards",desc:"Square kilometres of derelict starships and abandoned tech. A smuggler's paradise — and a good place to disappear."},
+      {name:"Kesh's Garage",desc:"Varro Kesh's legitimate-seeming repair shop. Actually a front for fencing stolen goods and selling information."},
+      {name:"The Rusty Hyena",desc:"A cantina popular with bounty hunters and mercs. ISB uses it as a casual observation post."},
+    ],
+    shops:[
+      {name:"Kesh's Garage",type:"Parts & Black Market",desc:"Vehicle and ship parts, plus whatever else Kesh has come across. Negotiation required.",inventory:"Starship parts (various, 50–2000cr), Blaster rifle (Enc 3, 900cr), Ion grenades x3 (Enc 1, 200cr each), Stolen Imperial access codes (150cr, limited use)"},
+      {name:"The Rusty Hyena",type:"Cantina",desc:"Drinks, rumours, and trouble. Bounty postings on the wall.",inventory:"Drinks (1–5cr), Rumours (10cr, quality varies), Bounty leads (varies)"},
+    ],
+    npcs:[
+      {key:"varro",name:"Varro Kesh",role:"Smuggler / Information Broker",desc:"A pragmatic Zabrak who has survived on Ord Mantell by knowing when to talk and when to shut up. He doesn't like the Empire but he doesn't like dying more. Price his loyalty before you lean on it.",hook:"Kesh is behind on payments to a Hutt crime lord. The Hutt's enforcers are coming. He'll sell almost anything to cover the debt — including what he knows about Rebel supply routes."},
+      {key:"sollus",name:"ISB Agent Sollus",role:"Imperial Security Bureau Agent",desc:"A nondescript human in plain clothes who is never not watching. Stationed on Ord Mantell specifically to monitor rebel activity in the sector. Cold, patient, precise.",hook:"Sollus has a partial dossier on the Silent Running cell. He's building a case slowly and methodically. The PCs showing up on Ord Mantell accelerates his timeline."},
+    ],
+    quests:[
+      {name:"The Stolen Manifest",type:"Retrieval",difficulty:"Average (2 difficulty)",reward:"600 cr + 10 XP",desc:"A shipping manifest detailing Imperial supply routes through the sector has been lifted from a customs officer. Get it before the ISB does.",gmHook:"The customs officer who was robbed is actually an Imperial plant. The 'manifest' is bait designed to lure Rebel contacts into the open — directly into Sollus's surveillance net."},
+    ],
+    dmNotes:"Sollus has four undercover agents on the ground on Ord Mantell. He does not engage directly — he watches, logs, and waits. If the PCs draw too much attention here, expect a 2-point Heat increase. Kesh can be turned into a reliable (if mercenary) ally if his Hutt debt is cleared (~3000cr).",
+  },
+  corellia:{
+    overview:"Corellia is a wealthy, heavily populated core world with a proud tradition of independence — and a thriving black market operating under the Empire's nose. CorSec (Corellian Security) maintains an uneasy relationship with Imperial forces.",
+    atmosphere:"The skyline of Coronet City glitters at night. Below the surface glamour, old loyalties and new resistance seethe. People talk in code here — it's an art form.",
+    poi:[
+      {name:"Coronet City",desc:"The planetary capital. Gleaming towers, an active port, and a CorSec precinct on every other block. Imperial Garrison in the industrial quarter."},
+      {name:"The Corellian Undercroft",desc:"A network of subterranean trade routes beneath Coronet City, used by smugglers and resistance fighters alike."},
+      {name:"Shipwright Row",desc:"Corellia's legendary shipyards. Bustling, noisy, and an excellent place to acquire ships or components with minimal questions."},
+    ],
+    shops:[
+      {name:"Shipwright Row",type:"Ship Parts & Modifications",desc:"High-quality parts and skilled mechanics. More expensive than the Outer Rim but far better quality.",inventory:"Hull plating (Enc 3, 300cr), Hyperdrive motivator (Enc 2, 800cr), Sensor jammer (Enc 2, 1200cr), Starfighter upgrade (service, 2000cr+)"},
+    ],
+    npcs:[
+      {key:"sable",name:"Sable (Kael Orun)",role:"Rebel Sleeper Agent / CorSec Officer",desc:"A CorSec detective with a hidden Rebel affiliation. Immaculate uniform, sharp eyes, by-the-book in public. In private — a careful resistance operative with access to Imperial communications logs.",hook:"Sable has discovered that a CorSec colleague is feeding information to ISB. That colleague has seen Sable meeting with Rebel contacts. It's a race to neutralise the threat without exposing the cell."},
+    ],
+    quests:[
+      {name:"The CorSec Connection",type:"Intelligence",difficulty:"Hard (3 difficulty)",reward:"15 XP + Corellia contact established",desc:"Make contact with the Rebel sleeper agent embedded in CorSec. Extract information on upcoming Imperial fleet movements without blowing their cover.",gmHook:"The meet is already compromised — ISB tagged one of the cell's courier droids three days ago. The PCs are walking into a surveillance situation. Sable knows but can't warn them in time."},
+    ],
+    dmNotes:"Sable's cover is fraying. Give them 2–3 more sessions before ISB moves to arrest. If the PCs help burn the ISB informant, Sable becomes a long-term reliable contact with access to Imperial naval schedules. Any open firefight triggers a 3-point Heat increase — Moff-level Imperial presence.",
+  },
+  naboo:{
+    overview:"Naboo is a lush, beautiful world of rolling plains and underwater cities, administered by an elected monarch but increasingly under the thumb of Imperial Governor Pennath Vaal. The population is quietly resentful.",
+    atmosphere:"Golden sunlight on marble architecture. The calm is a veneer — Vaal's enforcers move through the city at all hours and disappearances are becoming more common.",
+    poi:[
+      {name:"Theed",desc:"The capital city. Imperial garrison in what was once the Royal Palace quarter. The elected Queen maintains a symbolic presence."},
+      {name:"The Gungan Marshes",desc:"The wetlands surrounding the city. Gungan communities are largely ignored by the Empire — and used by resistance runners as a result."},
+      {name:"Governor's Palace",desc:"Pennath Vaal's seat of power. Heavily guarded, lavishly appointed, and full of secrets."},
+    ],
+    shops:[],
+    npcs:[
+      {key:"vaal",name:"Director Pennath Vaal",role:"Imperial Governor of Naboo",desc:"A cultured, precise man who genuinely believes the Empire improves the lives of those it governs. He is not cruel for pleasure — he is cruel for efficiency. This makes him more dangerous, not less.",hook:"Vaal has been running a COMPNOR youth indoctrination program on Naboo — results have been outstanding. He's preparing a report that, if adopted Empire-wide, would make Imperial loyalty programs significantly more effective. This report must be stolen or destroyed."},
+    ],
+    quests:[
+      {name:"The Vaal Report",type:"Espionage",difficulty:"Daunting (4 difficulty)",reward:"25 XP + significant strategic value",desc:"Steal or destroy Director Vaal's COMPNOR youth programme report before it reaches Imperial City. The report is stored in the Governor's Palace vault with biometric access controls.",gmHook:"Vaal suspects a theft attempt — not from Rebels, but from a rival Imperial official. His security has increased but he's watching the wrong threat. This actually helps the PCs if they're clever."},
+    ],
+    dmNotes:"Vaal is dangerous but not personally combat-capable — he relies entirely on his security detail. The Gungan communities can be cultivated as allies (Difficult Charm/Negotiation check) — they know every secret route through the marshes and have no love for the Empire.",
+  },
+  sullust:{
+    overview:"Sullust is a volcanic world dominated by SoroSuub Corporation, which has formally aligned with the Empire. Despite this, many Sullustan workers secretly support the Rebellion, and Nien Nunb coordinates an underground resistance network.",
+    atmosphere:"Acrid sulphur in the air, the constant rumble of industrial machinery. SoroSuub facilities glow orange against the dark sky. Workers' housing blocks are cramped and strictly monitored.",
+    poi:[
+      {name:"Pinyumb",desc:"The largest underground city and SoroSuub's corporate headquarters. All business goes through here."},
+      {name:"The Lava Tunnels",desc:"A network of natural tunnels beneath the SoroSuub facilities. Used by workers to move between areas off the corporate surveillance grid."},
+      {name:"Docking Bay 7-G",desc:"A maintenance bay nominally reserved for SoroSuub vessels. Actually used by Nien Nunb as a covert staging area."},
+    ],
+    shops:[
+      {name:"SoroSuub Outlet",type:"Corporate Supply",desc:"Standard SoroSuub merchandise — legitimately priced but leaves a record. Cash deals with workers off the books are possible.",inventory:"Blaster pistol (Enc 1, 350cr), Ion weapon upgrade (Enc 1, 800cr), Mining charges (Enc 2, 100cr each), SoroSuub uniform (Enc 1, 20cr) — good disguise"},
+    ],
+    npcs:[
+      {key:"nunnb",name:"Nien Nunb",role:"Rebel Coordinator / SoroSuub Underground",desc:"A gregarious Sullustan with a broad network of contacts throughout the SoroSuub workforce. He laughs often but misses nothing. His resistance network has been running for two years without a single leak.",hook:"Nien has discovered SoroSuub is manufacturing a new sensor component for Imperial warships — production is three months from completion. He wants it sabotaged but needs outside help to avoid blowing his network."},
+    ],
+    quests:[
+      {name:"Production Halt",type:"Sabotage",difficulty:"Hard (3 difficulty)",reward:"20 XP + Sullust resistance allied",desc:"Infiltrate the SoroSuub production facility and destroy the sensor component assembly line. It must look like an industrial accident.",gmHook:"Three SoroSuub security supervisors are secretly Imperial informants. They're already suspicious of unusual activity. Any open firefight locks down the entire facility."},
+    ],
+    dmNotes:"Nien Nunb is a long-term strategic asset. If the PCs treat his network with respect, he becomes a reliable source of Imperial manufacturing intelligence for the rest of the campaign. SoroSuub corporate security uses private mercenaries, not Stormtroopers — less lethal but more numerous.",
+  },
+  kessel:{
+    overview:"Kessel is a harsh mining world on the edge of a black hole cluster, famous for its spice mines. Imperial control is absolute — slave labour, brutal overseers, and a permanent garrison. An Inquisitor has recently been stationed here.",
+    atmosphere:"The air is thin and bitter. The mines go deep. Screams echo. Nobody talks about what happens in the lower shafts.",
+    poi:[
+      {name:"The Spice Mines",desc:"Vast underground excavations staffed by slave labour. Imperial overseers on every level. The spice is valuable — the workers are not."},
+      {name:"Imperial Garrison Kessel",desc:"A fully-staffed Imperial military installation with TIE Fighter complement. The Inquisitor has a private suite on the top floor."},
+      {name:"The Maw Approach",desc:"The dangerous passage through the black hole cluster. Only experienced pilots navigate it. Smugglers know shortcuts the Empire has never found."},
+    ],
+    shops:[],
+    npcs:[
+      {key:"verath",name:"Inquisitor Verath",role:"Imperial Inquisitor (Force Hunter)",desc:"Verath moves like something that used to be human and decided it didn't have to be anymore. Cold eyes, patient voice, and a clinical interest in Force-sensitives. Assigned to Kessel after reports of a Force-sensitive among the mine workers.",hook:"Verath has a list — not just Force-sensitives, but every Rebel operative he's identified in the sector. He reviews it every morning. The PCs' names may already be there."},
+    ],
+    quests:[
+      {name:"The Sensitive",type:"Rescue",difficulty:"Daunting (4 difficulty)",reward:"30 XP + major Rebel goodwill",desc:"A Force-sensitive child is among the slave labourers in the Kessel mines. Extract them before Verath identifies and takes them. Time is very short.",gmHook:"Verath has already noticed the child. He's waiting — using the child as bait to draw out anyone who comes for them. The rescue is a trap, and Verath is personally waiting at the exit."},
+    ],
+    dmNotes:"Kessel should feel like a horror location. The Inquisitor is NEMESIS-grade — direct confrontation at this stage is suicide. The point is to feel his presence and perhaps force a desperate escape. Verath is not stupid and will not engage on ground that doesn't favour him.",
+  },
+  reaper:{
+    overview:"Reaper's Drift is a dense debris field — the remnant of a destroyed space station. Pirates and scavengers have carved out a lawless stronghold among the wreckage. Boss Kel Vane controls the territory.",
+    atmosphere:"Wreckage slowly rotating against the void. Docking clamps grafted onto shattered hull plates. The smell of recycled air and other people's desperation. No laws apply here.",
+    poi:[
+      {name:"The Core Hub",desc:"The main habitation section, pieced together from three different ships' crew quarters. Kel Vane holds court here."},
+      {name:"The Chop Yard",desc:"Where captured ships get stripped. Drax Solenne oversees operations with an eye for value."},
+      {name:"The Floating Market",desc:"A zero-gravity open market in the largest intact compartment of the wreck. Anything can be bought here for the right price."},
+    ],
+    shops:[
+      {name:"The Floating Market",type:"Black Market",desc:"No questions asked. Significant markup. Everything is theoretically available given enough credits and time.",inventory:"Military-grade weapons (+20% above book price), Stolen ship parts (50% of book price), Fake identities (500cr), Bounty hunter contacts (service, 200cr intro fee)"},
+    ],
+    npcs:[
+      {key:"kelvane",name:"Boss Kel Vane",role:"Pirate Lord",desc:"A heavyset Devaronian who runs Reaper's Drift through a combination of charisma, violence, and a very good memory for debts. He's not loyal to anyone but he respects strength and credits.",hook:"Kel Vane recently acquired a crate of Imperial encryption hardware from a raid on a courier vessel. He doesn't know what it is. The Empire very much wants it back — and is offering a bounty. He'll sell to whoever gets there first."},
+      {key:"drax",name:"Drax Solenne",role:"Pirate Lieutenant / Ship Stripper",desc:"A meticulous Mirialan who treats ship stripping like art. He knows the value of everything and has no sentiment about any of it. Serves Kel Vane loyally — for now.",hook:"Drax is quietly skimming from Kel Vane's operations. If the PCs discover this, they have leverage — but if Drax thinks they'll tell Vane, he'll try to kill them first."},
+    ],
+    quests:[
+      {name:"The Encrypted Crate",type:"Acquisition",difficulty:"Hard (3 difficulty)",reward:"Imperial encryption hardware + 1000 cr",desc:"Acquire the Imperial encryption hardware before the Empire's bounty hunters arrive. Kel Vane will sell it — the question is whether the price is credits, a favour, or a fight.",gmHook:"The hardware contains communications logs from a Star Destroyer — including patrol schedules for the entire sector. Once decrypted by Alliance Intelligence this becomes a major strategic advantage. The Imperials know exactly what they lost and are escalating."},
+    ],
+    dmNotes:"Reaper's Drift is morally grey territory — valuable as a resource but always dangerous. Kel Vane can be cultivated as a reliable (if expensive) fence and information source. Do not let the PCs get comfortable here — someone always wants something from them.",
+  },
+  kwenn:{
+    overview:"Kwenn Space Station is a massive commercial platform at a major hyperspace junction. It serves thousands of ships daily and hosts traders, travellers, and Imperial customs alongside a sprawling civilian population.",
+    atmosphere:"The smell of a thousand different food stalls competing with engine exhaust. Crowds press through narrow corridors. The Empire watches from elevated platforms — but there's too much to watch.",
+    poi:[
+      {name:"The Grand Concourse",desc:"Kwenn's main commercial thoroughfare. Packed at all hours. A pickpocket's paradise and a surveillance nightmare for Imperial forces."},
+      {name:"Docking Ring 9",desc:"The less-regulated outer ring where smaller, less scrupulous vessels dock. Imperial inspections here are infrequent."},
+      {name:"Merrak's Exchange",desc:"A reputable — if flexible — money changing and cargo brokering operation. Good place to move sensitive cargo or exchange currency without a trail."},
+    ],
+    shops:[
+      {name:"The Grand Concourse",type:"Mixed Markets",desc:"Every category of goods available in small quantities. No specialisation but excellent variety.",inventory:"Standard equipment at book price, Medpac (Enc 2, 100cr), Comlink (Enc 1, 25cr), Datapad (Enc 1, 75cr), Various disguise items (10–100cr)"},
+      {name:"Merrak's Exchange",type:"Financial / Cargo Services",desc:"Currency exchange, cargo documentation, and discrete shipping arrangements.",inventory:"Fake shipping manifests (200cr), Clean credit exchange (5% fee), Black market cargo routing (10% of cargo value)"},
+    ],
+    npcs:[],
+    quests:[
+      {name:"Dead Drop",type:"Courier",difficulty:"Average (2 difficulty)",reward:"400 cr + 8 XP",desc:"Pick up a dead drop left by an Alliance courier who never checked in. The drop is in Docking Ring 9. Imperial customs is running spot checks this week. Don't attract attention.",gmHook:"The original courier was captured three days ago. Imperial Intelligence has already found and replaced the dead drop with a tracker. Picking it up tags the PCs' ship."},
+    ],
+    dmNotes:"Kwenn is a good resupply and information-gathering hub. Imperial presence is spread thin due to the station's size — any individual incident gets lost in the noise unless it's spectacular. Arriving at Kwenn adds 1 Heat automatically as Imperial scanners log the PCs' ship on arrival.",
+  },
+  terminus:{
+    overview:"Terminus Station is an Imperial military communications relay and patrol base disguised as a civilian waypoint station. Captain Elia Renaus commands the garrison; Lieutenant Daven Osk manages day-to-day operations.",
+    atmosphere:"Sterile, precise, and watchful. Every corridor has a camera. Every docking request is verified twice. The civilian cover story is thin enough to see through if you know what to look for.",
+    poi:[
+      {name:"Command Deck",desc:"Renaus runs operations from here. The main communications array feeds directly to Sector Command."},
+      {name:"Prisoner Block",desc:"Three cells. Currently empty — but not for long if the PCs draw attention."},
+      {name:"Communications Array",desc:"The primary reason this station exists. If taken offline, Sector Command loses contact with six patrol routes."},
+    ],
+    shops:[],
+    npcs:[
+      {key:"renaus",name:"Captain Elia Renaus",role:"Imperial Station Commander",desc:"A career officer who earned her rank through competence and ruthlessness. She believes absolutely in the Empire and has no patience for failure — her own or others'. She will not underestimate the PCs twice.",hook:"Renaus is using station resources to run a private investigation into who sabotaged an Imperial convoy three months ago. She's close to identifying the cell. This investigation is off-book — if her superiors found out she'd face consequences."},
+      {key:"osk",name:"Lieutenant Daven Osk",role:"Imperial Station Executive Officer",desc:"Polite, professional, and slightly terrified of Renaus. He follows orders precisely and without initiative. Privately, he hates what he's been ordered to do to civilian ships. He has not acted on this. Yet.",hook:"Osk has compiled evidence of Renaus's private investigation. He's keeping it as insurance. He would defect given a safe way out — but he won't make the first move."},
+    ],
+    quests:[
+      {name:"Blackout",type:"Sabotage",difficulty:"Hard (3 difficulty)",reward:"20 XP + significant strategic value",desc:"Destroy or disable the Terminus Station communications array. This creates a 72-hour blind spot in Imperial patrol coordination across six routes — a window the Alliance desperately needs.",gmHook:"Renaus anticipated an attack on the array and has set a trap — 'disabling' it triggers a silent alarm. Osk knows about this trap. Whether he tells the PCs depends on whether they've given him a reason to trust them."},
+    ],
+    dmNotes:"Osk is a potential defector — treat him as a slow-burn asset. His evidence against Renaus could be used to have her recalled if it reaches rival Imperial bureaucrats. If Renaus survives the Blackout mission, she escalates her private investigation with renewed focus.",
+  },
+  alpha:{
+    overview:"Haven Alpha is a secret Rebel Alliance staging area in a remote system, used for fleet coordination and strike team assembly. Admiral Vorn Tessek commands this installation.",
+    atmosphere:"Efficient military discipline. Everyone here knows the stakes. The Admiral's presence raises both confidence and tension — he is exacting and expects results.",
+    poi:[
+      {name:"Fleet Staging Area",desc:"Multiple Alliance frigates and support vessels in coordinated formation. The Alliance's real military might, rarely seen by operatives."},
+      {name:"Briefing Theatre",desc:"Where major operation orders are issued. The holographic displays show the full strategic picture."},
+      {name:"The Admiral's Office",desc:"Tessek runs Haven Alpha with precision. He is never without his aide, who manages his communications and schedule."},
+    ],
+    shops:[],
+    npcs:[
+      {key:"tessek",name:"Admiral Vorn Tessek",role:"Alliance Fleet Commander",desc:"A tall, silver-haired human of absolute military bearing. He commands Haven Alpha and coordinates large-scale Alliance operations in the sector. He is searching for his daughter, Lira, though he doesn't know she's at Kal'Shara.",hook:"Tessek is not fully aware that his daughter defected willingly — he believes she was taken. He has diverted Alliance Intelligence resources toward finding her. General Cracken is quietly furious but has not confronted him directly. When the PCs discover the connection, both men will want something from them."},
+    ],
+    quests:[
+      {name:"Fleet Coordination",type:"Strategic",difficulty:"Formidable (5 difficulty)",reward:"50 XP + major Alliance advancement",desc:"Carry a sealed operational plan between Haven Alpha and Kal'Shara without interception. The plan details the Alliance's next major strike. If it falls into Imperial hands, the operation — and perhaps the fleet — is lost.",gmHook:"There is an Imperial sleeper agent on Haven Alpha. They don't know the plan's contents but they know it's being transported. The PCs are the target from the moment they leave the station."},
+    ],
+    dmNotes:"Haven Alpha is a late-campaign location — high stakes, high security. Tessek is a potential adversary if his search for Lira brings him into conflict with Kal'Shara. The revelation that Lira left willingly is a campaign pivot moment. Tessek is not a villain, just a father who can't see clearly.",
+  },
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NPC STAT BLOCKS  (sourced from npc_dossier.pdf)
+// ─────────────────────────────────────────────────────────────────────────────
+const NPC_STATS: Record<string,{
+  name:string; type:'NEMESIS'|'RIVAL'|'ALLY'|'MINION'; species:string; career:string;
+  brawn:number; agility:number; intellect:number; cunning:number; willpower:number; presence:number;
+  soak:number; woundThreshold:number; strainThreshold?:number;
+  defense:{ranged:number;melee:number}; forceRating?:number; adversary?:number;
+  skills:{name:string;rank:number}[];
+  talents:{name:string;desc:string}[];
+  weapons:{name:string;damage:string;critical:number;range:string;qualities:string}[];
+  abilities:string[]; equipment:string; desc:string; hook:string;
+}> = {
+  verath:{
+    name:"Inquisitor Verath",type:"NEMESIS",species:"Human (Dark Side)",career:"Inquisitor",
+    brawn:3,agility:4,intellect:3,cunning:4,willpower:5,presence:3,
+    soak:5,woundThreshold:18,strainThreshold:16,
+    defense:{ranged:2,melee:2},forceRating:3,adversary:3,
+    skills:[{name:"Lightsaber",rank:4},{name:"Coercion",rank:3},{name:"Perception",rank:3},{name:"Vigilance",rank:3},{name:"Discipline",rank:3},{name:"Athletics",rank:2},{name:"Stealth",rank:2},{name:"Computers",rank:2}],
+    talents:[
+      {name:"Adversary 3",desc:"Upgrade the difficulty of all combat checks targeting this character three times."},
+      {name:"Reflect 4",desc:"When hit by a ranged attack, suffer 3 strain to reduce damage by 9."},
+      {name:"Parry 5",desc:"When hit by a melee attack, suffer 3 strain to reduce damage by 10."},
+      {name:"Fearsome",desc:"At the start of combat, all opponents must make a Fear check (Average difficulty)."},
+      {name:"Force Sense",desc:"Sense all living things within short range, or detect Force users at medium range."},
+      {name:"Move",desc:"Move objects up to silhouette 1 as a maneuver; larger objects with more Force points."},
+    ],
+    weapons:[
+      {name:"Double-bladed Lightsaber",damage:"Brawn+3 (6)",critical:1,range:"Engaged",qualities:"Breach 1, Sunder, Linked 1, Cortosis"},
+      {name:"Force Power: Bind",damage:"Immobilize",critical:0,range:"Medium",qualities:"Target cannot act; additional Force points add effects"},
+    ],
+    abilities:["Force Power: Sense","Force Power: Move","Force Power: Bind","Dark Side — may spend Destiny Points to recover strain"],
+    equipment:"Double-bladed lightsaber, Inquisitor armour (Def 2, Soak +2), Imperial comlink, datapad with wanted list",
+    desc:"Cold, methodical, and utterly certain in his purpose. Verath does not waste energy on cruelty — suffering is simply a tool.",
+    hook:"Verath has the PCs on his list. He won't move until he has complete information — then he'll close the trap with precision. His greatest weakness is patience becoming complacency.",
+  },
+  renaus:{
+    name:"Captain Elia Renaus",type:"NEMESIS",species:"Human",career:"Imperial Officer",
+    brawn:2,agility:3,intellect:4,cunning:4,willpower:4,presence:4,
+    soak:4,woundThreshold:16,strainThreshold:18,
+    defense:{ranged:1,melee:1},adversary:2,
+    skills:[{name:"Leadership",rank:4},{name:"Tactics",rank:3},{name:"Computers",rank:3},{name:"Coercion",rank:3},{name:"Vigilance",rank:3},{name:"Ranged (Light)",rank:2},{name:"Deception",rank:2},{name:"Perception",rank:3}],
+    talents:[
+      {name:"Adversary 2",desc:"Upgrade the difficulty of all combat checks targeting this character twice."},
+      {name:"Commanding Presence 2",desc:"Remove two setback dice from Leadership and Cool checks."},
+      {name:"Tactical Combat Training",desc:"May use Tactics skill instead of Cool for initiative checks."},
+      {name:"Unrelenting",desc:"Once per session, ignore the effects of a Critical Injury until end of encounter."},
+    ],
+    weapons:[
+      {name:"Heavy Blaster Pistol",damage:"7",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Vibroblade",damage:"Brawn+2 (4)",critical:2,range:"Engaged",qualities:"Pierce 2, Vicious 1"},
+    ],
+    abilities:["Commander — all Imperial forces under her command add one boost die to combat checks","Tactical Genius — once per encounter may redeploy all friendly minion groups as a free action"],
+    equipment:"Imperial Captain's uniform (Soak +2, Def +1), heavy blaster pistol, vibroblade, command datapad, encrypted comlink",
+    desc:"Renaus earned every rank the hard way. She is not cruel — she is efficient. The difference matters until you're on the wrong side of her.",
+    hook:"Her off-book investigation is her blind spot. Expose it and you can neutralise her — but she'll know it was you.",
+  },
+  varro:{
+    name:"Varro Kesh",type:"RIVAL",species:"Zabrak",career:"Smuggler",
+    brawn:3,agility:3,intellect:3,cunning:3,willpower:2,presence:3,
+    soak:4,woundThreshold:14,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Streetwise",rank:3},{name:"Negotiation",rank:3},{name:"Deception",rank:2},{name:"Pilot (Space)",rank:2},{name:"Ranged (Light)",rank:2},{name:"Skullduggery",rank:2}],
+    talents:[
+      {name:"Black Market Contacts",desc:"Reduce the rarity of any item by 1 (minimum 0) when negotiating."},
+      {name:"Convincing Demeanor",desc:"Remove one setback die from Deception and Skullduggery checks."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Holdout Blaster",damage:"5",critical:4,range:"Short",qualities:"Stun Setting, Inaccurate 1"},
+    ],
+    abilities:["Knows a Guy — once per session, identify a useful criminal contact in any location"],
+    equipment:"Blaster pistol, holdout blaster, datapad, ~500cr (current), mechanic's tools",
+    desc:"Pragmatic above all else. Kesh will help if it's in his interest. Remove the threat to his interest and he becomes genuinely useful.",
+    hook:"His Hutt debt (3000cr) is the lever. Pay it off and his loyalty is real — if mercenary. Let it fester and he sells the PCs to cover it.",
+  },
+  vaal:{
+    name:"Director Pennath Vaal",type:"RIVAL",species:"Human",career:"Imperial Administrator",
+    brawn:2,agility:2,intellect:4,cunning:4,willpower:3,presence:4,
+    soak:2,woundThreshold:12,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Deception",rank:3},{name:"Negotiation",rank:3},{name:"Leadership",rank:3},{name:"Coercion",rank:3},{name:"Core Worlds",rank:3},{name:"Perception",rank:2}],
+    talents:[
+      {name:"Plausible Deniability",desc:"When implicated in wrongdoing, make an opposed Deception vs. Vigilance check to deflect blame."},
+      {name:"Nobody's Fool",desc:"Upgrade the difficulty of all Deception checks made against him once."},
+    ],
+    weapons:[
+      {name:"Hold-out Blaster",damage:"5",critical:4,range:"Short",qualities:"Stun Setting"},
+    ],
+    abilities:["Political Capital — once per session, call in a favour with Imperial bureaucracy for access or resources","Always Watched — 2 Imperial Guard (Rival-grade) are always within short range"],
+    equipment:"Hold-out blaster, datapad, encrypted comlink, administrative credentials, COMPNOR report (objective)",
+    desc:"Vaal is the Empire at its most mundane and most dangerous. He has the full weight of the Imperial administrative machine behind him, and uses it like a precision instrument.",
+    hook:"The COMPNOR report is his magnum opus. Steal or destroy it — but he'll know someone was there, and he'll use every resource to find out who.",
+  },
+  sollus:{
+    name:"ISB Agent Sollus",type:"RIVAL",species:"Human",career:"ISB Agent",
+    brawn:2,agility:3,intellect:4,cunning:4,willpower:3,presence:2,
+    soak:3,woundThreshold:12,
+    defense:{ranged:1,melee:0},
+    skills:[{name:"Coercion",rank:3},{name:"Deception",rank:3},{name:"Perception",rank:3},{name:"Ranged (Light)",rank:3},{name:"Computers",rank:2},{name:"Vigilance",rank:3},{name:"Streetwise",rank:2}],
+    talents:[
+      {name:"Adversary 1",desc:"Upgrade the difficulty of all combat checks targeting this character once."},
+      {name:"Hard-Boiled",desc:"When recovering strain, may spend advantage to also recover one wound."},
+      {name:"Crippling Blow",desc:"Once per round, after a successful attack, spend 1 advantage to inflict a Critical Injury ignoring one difficulty."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol (modified)",damage:"7",critical:3,range:"Medium",qualities:"Stun Setting, Accurate 1"},
+    ],
+    abilities:["ISB Network — once per session call on Imperial resources (surveillance data, additional agents, detained witnesses)"],
+    equipment:"Modified blaster pistol, light armour vest (Soak +1, Def +1), ISB credentials, encrypted datapad",
+    desc:"Sollus doesn't chase. He waits, gathers, and closes. He has been building his file on the Silent Running cell for four months.",
+    hook:"He has three contacts on Ord Mantell who report to him. He doesn't know the party's names yet — but he has their faces.",
+  },
+  osk:{
+    name:"Lieutenant Daven Osk",type:"RIVAL",species:"Human",career:"Imperial Officer",
+    brawn:2,agility:3,intellect:3,cunning:2,willpower:2,presence:3,
+    soak:3,woundThreshold:11,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Leadership",rank:2},{name:"Computers",rank:2},{name:"Pilot (Space)",rank:2},{name:"Ranged (Light)",rank:1},{name:"Discipline",rank:1},{name:"Perception",rank:2}],
+    talents:[
+      {name:"Confidence",desc:"May use Discipline instead of Cool when determining initiative."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+    ],
+    abilities:["Reluctant Authority — if convinced his conscience is being served, will provide access codes or station intel rather than fight"],
+    equipment:"Blaster pistol, Imperial uniform (no armour), station access codes, encrypted evidence file on Renaus",
+    desc:"Osk is not a bad man in a good system. He's a conflicted man who took the wrong job and hasn't found his way out. Yet.",
+    hook:"His evidence file on Renaus is the key. He needs a safe exit — the PCs can provide one if they recognise the opportunity.",
+  },
+  tessek:{
+    name:"Admiral Vorn Tessek",type:"RIVAL",species:"Human",career:"Alliance Fleet Officer",
+    brawn:2,agility:2,intellect:4,cunning:3,willpower:4,presence:4,
+    soak:3,woundThreshold:13,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Leadership",rank:4},{name:"Tactics",rank:3},{name:"Knowledge (Warfare)",rank:3},{name:"Negotiation",rank:2},{name:"Perception",rank:2},{name:"Ranged (Light)",rank:1}],
+    talents:[
+      {name:"Natural Leader",desc:"Once per session, grant one ally an additional free maneuver."},
+      {name:"Strategic Commander",desc:"When issuing orders, allies add a boost die to their next check."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+    ],
+    abilities:["Fleet Command — in large-scale engagements, all Alliance forces gain one additional Destiny Point"],
+    equipment:"Blaster pistol, Admiral's uniform, encrypted comlink, strategic datapads, personal photo of Lira",
+    desc:"A great commander and a blind father. His search for Lira is consuming judgment he cannot afford to spend.",
+    hook:"When the truth about Lira comes out, Tessek either accepts it — becoming one of the campaign's most valuable assets — or fractures, creating a major internal Alliance crisis. The PCs will determine which.",
+  },
+  cracken:{
+    name:"General Airen Cracken",type:"ALLY",species:"Human",career:"Intelligence Officer",
+    brawn:2,agility:3,intellect:4,cunning:4,willpower:4,presence:3,
+    soak:3,woundThreshold:14,
+    defense:{ranged:1,melee:0},
+    skills:[{name:"Leadership",rank:3},{name:"Deception",rank:4},{name:"Perception",rank:3},{name:"Vigilance",rank:3},{name:"Computers",rank:3},{name:"Ranged (Light)",rank:2},{name:"Coercion",rank:2},{name:"Streetwise",rank:3}],
+    talents:[
+      {name:"Master of Deception",desc:"Remove two setback dice from all Deception checks."},
+      {name:"Hard-Boiled",desc:"When recovering strain, may spend extra advantage to recover one wound per advantage."},
+      {name:"Network",desc:"Once per session, gain access to one specific piece of intelligence through Alliance channels."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting, Accurate 1"},
+    ],
+    abilities:["Intel Network — spend one Destiny Point to know an important fact about any Imperial operation in the sector"],
+    equipment:"Modified blaster pistol, encrypted comlink, intelligence dossiers, personal datapad",
+    desc:"Cracken is the kind of man who wins without fighting. He prefers to know everything, reveal nothing, and let events unfold to his advantage.",
+    hook:"Cracken knows about the Tessek situation and is watching to see how the PCs handle it. Their judgement here determines what he entrusts to them next.",
+  },
+  mira:{
+    name:"Mira Volante",type:"ALLY",species:"Human",career:"Smuggler / Operative",
+    brawn:2,agility:3,intellect:3,cunning:4,willpower:3,presence:3,
+    soak:3,woundThreshold:12,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Streetwise",rank:3},{name:"Deception",rank:3},{name:"Ranged (Light)",rank:2},{name:"Skullduggery",rank:3},{name:"Negotiation",rank:2},{name:"Stealth",rank:2},{name:"Survival",rank:2}],
+    talents:[
+      {name:"Black Market Contacts",desc:"Reduce rarity of any item by 1 for purchase purposes."},
+      {name:"Convincing Demeanor",desc:"Remove one setback from Deception and Skullduggery checks."},
+      {name:"Durable",desc:"Reduce Critical Injury result by 10."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Vibroknife",damage:"Brawn+1 (3)",critical:2,range:"Engaged",qualities:"Pierce 2"},
+    ],
+    abilities:["Local Knowledge (Ryloth) — remove all setback dice from checks related to navigating or operating on Ryloth"],
+    equipment:"Blaster pistol, vibroknife, cantina (asset), encrypted comlink, local contacts list",
+    desc:"Mira has survived a decade on Ryloth by being smarter than everyone who wanted to use her. She's usually right. Not always.",
+    hook:"Her double-dealing will surface. The PCs' response determines whether she becomes a loyal ally or a tragic casualty.",
+  },
+  yara:{
+    name:"Dr. Yara Senn",type:"ALLY",species:"Mirialan",career:"Medic",
+    brawn:2,agility:2,intellect:4,cunning:3,willpower:3,presence:3,
+    soak:2,woundThreshold:12,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Medicine",rank:4},{name:"Knowledge (Xenobiology)",rank:3},{name:"Perception",rank:2},{name:"Ranged (Light)",rank:1},{name:"Computers",rank:2},{name:"Deception",rank:2}],
+    talents:[
+      {name:"Surgeon 3",desc:"When making Medicine checks to heal wounds, heal 3 additional wounds."},
+      {name:"Stim Application 2",desc:"Twice per session, allow an ally to perform one additional maneuver without spending strain."},
+      {name:"Bacta Specialist",desc:"Patients heal one additional wound per day under Yara's care."},
+    ],
+    weapons:[
+      {name:"Hold-out Blaster",damage:"5",critical:4,range:"Short",qualities:"Stun Setting"},
+    ],
+    abilities:["Field Surgery — stabilise a dying character as an action (no check required) and restore them to 1 wound"],
+    equipment:"Hold-out blaster, medpac x3, surgical tools (Enc 4), encrypted personal datapad, Imperial medical credentials (false)",
+    desc:"Brilliant, sardonic, and impossible to intimidate once she's decided to help you. Don't question her methods. They work.",
+    hook:"Her Imperial contact who supplies stolen bacta will eventually need a favour that complicates the cell's operations.",
+  },
+  lira:{
+    name:"Lira Tessek",type:"ALLY",species:"Human",career:"Logistics / Quartermaster",
+    brawn:2,agility:3,intellect:3,cunning:3,willpower:3,presence:4,
+    soak:2,woundThreshold:11,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Negotiation",rank:3},{name:"Leadership",rank:2},{name:"Cool",rank:3},{name:"Charm",rank:3},{name:"Computers",rank:2},{name:"Ranged (Light)",rank:1}],
+    talents:[
+      {name:"Smooth Talker (Negotiation)",desc:"Once per session, make a Negotiation check as if it were 1 difficulty easier."},
+      {name:"Inspiring Rhetoric",desc:"Once per encounter, allies within short range recover 2 strain."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+    ],
+    abilities:["Quartermaster — once per session, produce any common piece of equipment (Rarity 4 or less) from base supplies"],
+    equipment:"Blaster pistol, encrypted comlink, inventory datapad, personal comm (with unread message from Admiral's aide)",
+    desc:"Warm, efficient, and carrying something she won't talk about. Lira holds the base together socially more than anyone realises.",
+    hook:"The unread message. When she opens it, the campaign changes. The PCs may be in the room when it happens.",
+  },
+  sable:{
+    name:"Sable (Kael Orun)",type:"RIVAL",species:"Human",career:"CorSec Officer / Operative",
+    brawn:3,agility:3,intellect:3,cunning:4,willpower:3,presence:3,
+    soak:4,woundThreshold:14,
+    defense:{ranged:1,melee:1},
+    skills:[{name:"Ranged (Light)",rank:3},{name:"Vigilance",rank:3},{name:"Perception",rank:3},{name:"Deception",rank:3},{name:"Skullduggery",rank:2},{name:"Streetwise",rank:2},{name:"Brawl",rank:2}],
+    talents:[
+      {name:"Adversary 1",desc:"Upgrade the difficulty of all combat checks targeting this character once."},
+      {name:"Point Blank",desc:"Add one damage per rank to Ranged attacks while within short range."},
+      {name:"Quick Draw",desc:"Draw or holster a weapon or accessible item as an incidental."},
+    ],
+    weapons:[
+      {name:"CorSec Blaster Pistol (modified)",damage:"7",critical:3,range:"Medium",qualities:"Accurate 1, Stun Setting"},
+      {name:"Stun Baton",damage:"Brawn+2 (5)",critical:5,range:"Engaged",qualities:"Disorient 2, Stun 3"},
+    ],
+    abilities:["Undercover Protocol — when operating non-combat, add two boost dice to all Deception checks"],
+    equipment:"Modified blaster pistol, stun baton, CorSec badge (real), Rebel contact codes (encrypted), light armour (Soak +1, Def +1)",
+    desc:"Sable operates in the space between identities. Neither fully CorSec nor fully Rebel, they survive by being exactly what each side expects.",
+    hook:"The ISB informant inside CorSec is running out of patience. The race to neutralise them is measured in days, not weeks.",
+  },
+  nunnb:{
+    name:"Nien Nunb",type:"ALLY",species:"Sullustan",career:"Pilot / Resistance Coordinator",
+    brawn:2,agility:4,intellect:3,cunning:3,willpower:3,presence:3,
+    soak:3,woundThreshold:12,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Piloting (Space)",rank:4},{name:"Astrogation",rank:3},{name:"Mechanics",rank:3},{name:"Streetwise",rank:3},{name:"Ranged (Light)",rank:2},{name:"Cool",rank:3}],
+    talents:[
+      {name:"Galaxy Mapper",desc:"Remove one setback die from Astrogation checks. Once per session, astrogation checks take half normal time."},
+      {name:"Skilled Jockey 2",desc:"Remove two setback dice from Piloting checks."},
+      {name:"Full Throttle",desc:"Once per round, may take Full Throttle action to increase vehicle speed by 1 (Hard Piloting check)."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+    ],
+    abilities:["Underground Network — move personnel or goods through Sullust without a trace; eliminate 1 Heat gained on Sullust once per session"],
+    equipment:"Blaster pistol, flight suit, encrypted comlink, SoroSuub worker ID (genuine), network contact codes",
+    desc:"Nien Nunb laughs first and shoots second. Don't mistake the laughter for lack of seriousness. He has held this network together for two years without a single betrayal.",
+    hook:"The sensor component sabotage. If the PCs execute it well, Nien becomes one of the campaign's most reliable logistical assets.",
+  },
+  drax:{
+    name:"Drax Solenne",type:"RIVAL",species:"Mirialan",career:"Scavenger / Lieutenant",
+    brawn:3,agility:3,intellect:4,cunning:3,willpower:2,presence:2,
+    soak:4,woundThreshold:13,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Mechanics",rank:4},{name:"Computers",rank:3},{name:"Ranged (Light)",rank:2},{name:"Skullduggery",rank:3},{name:"Perception",rank:2},{name:"Brawl",rank:2}],
+    talents:[
+      {name:"Gearhead",desc:"Remove one setback die from Mechanics checks. Reduce time for mechanical work by 25%."},
+      {name:"Jury Rigged",desc:"Choose one weapon or equipment piece; reduce its encumbrance by 1 and increase its critical rating by 1."},
+    ],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Sawed-off Scattergun",damage:"8",critical:3,range:"Short",qualities:"Blast 6, Knockdown, Limited Ammo 2"},
+    ],
+    abilities:["Salvage Expert — may identify value or function of any salvage item without a check"],
+    equipment:"Blaster pistol, scattergun, mechanics tools, armoured jacket (Soak +1), encrypted accounting records (evidence of skimming)",
+    desc:"Drax is good at two things: understanding machines and keeping secrets. One of those is about to cause him serious problems.",
+    hook:"His skimming operation. He will kill to keep it secret. Hold it over him rather than reporting it and he becomes a frightened but useful inside contact at Reaper's Drift.",
+  },
+  kelvane:{
+    name:"Boss Kel Vane",type:"RIVAL",species:"Devaronian",career:"Pirate Lord",
+    brawn:4,agility:3,intellect:2,cunning:4,willpower:3,presence:4,
+    soak:5,woundThreshold:16,
+    defense:{ranged:1,melee:1},
+    skills:[{name:"Coercion",rank:3},{name:"Brawl",rank:3},{name:"Ranged (Light)",rank:2},{name:"Melee",rank:2},{name:"Leadership",rank:3},{name:"Negotiation",rank:2},{name:"Vigilance",rank:2}],
+    talents:[
+      {name:"Adversary 1",desc:"Upgrade the difficulty of all combat checks targeting this character once."},
+      {name:"Intimidating",desc:"May use Coercion instead of Presence for social checks when fear is a factor."},
+      {name:"Quick Strike",desc:"Add one boost die to combat checks against targets that have not yet acted this round."},
+    ],
+    weapons:[
+      {name:"Heavy Blaster Pistol",damage:"7",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Vibro-Axe",damage:"Brawn+3 (7)",critical:2,range:"Engaged",qualities:"Pierce 2, Sunder, Vicious 3"},
+    ],
+    abilities:["Never Alone — always accompanied by 1d3 pirate bodyguards (Rival-grade) when encountered in Reaper's Drift"],
+    equipment:"Heavy blaster pistol, vibro-axe, armoured coat (Soak +1, Def +1), encrypted financial records, communication codes",
+    desc:"Kel Vane rules Reaper's Drift through the oldest law in the galaxy: I'm bigger than you and I remember everything.",
+    hook:"The Imperial encryption hardware. He'll sell it to whoever impresses him most — credits, reputation, or sheer audacity.",
+  },
+  stormtrooper:{
+    name:"Imperial Stormtrooper",type:"MINION",species:"Human",career:"Imperial Soldier",
+    brawn:3,agility:3,intellect:2,cunning:2,willpower:2,presence:2,
+    soak:5,woundThreshold:5,
+    defense:{ranged:1,melee:1},
+    skills:[{name:"Ranged (Heavy)",rank:1},{name:"Brawl",rank:1},{name:"Vigilance",rank:1}],
+    talents:[],
+    weapons:[
+      {name:"E-11 Blaster Rifle",damage:"9",critical:3,range:"Medium",qualities:"Stun Setting"},
+      {name:"Brawl",damage:"Brawn+0 (3)",critical:5,range:"Engaged",qualities:""},
+    ],
+    abilities:["Standard Imperial training — operates as minion group (skills combine when grouped)"],
+    equipment:"E-11 blaster rifle, stormtrooper armour (Soak +2, Def +1), comlink, 2 stun grenades",
+    desc:"The Empire's rank-and-file. Individually competent; in groups, a serious threat.",
+    hook:"Stormtroopers have call codes. Capturing one provides codes that allow 24 hours of impersonation before the codes cycle.",
+  },
+  navalofficer:{
+    name:"Imperial Naval Officer",type:"MINION",species:"Human",career:"Imperial Officer",
+    brawn:2,agility:2,intellect:3,cunning:3,willpower:3,presence:3,
+    soak:2,woundThreshold:4,
+    defense:{ranged:0,melee:0},
+    skills:[{name:"Ranged (Light)",rank:1},{name:"Leadership",rank:1},{name:"Discipline",rank:1}],
+    talents:[],
+    weapons:[
+      {name:"Blaster Pistol",damage:"6",critical:3,range:"Medium",qualities:"Stun Setting"},
+    ],
+    abilities:["Command — while alive, all Stormtrooper minion groups within medium range add one boost die to combat checks"],
+    equipment:"Blaster pistol, Imperial uniform, datapad, access codes (level dependent on rank)",
+    desc:"Officers range from competent bureaucrats to dangerous tactical minds. Assume the worst.",
+    hook:"Their access codes are always the most valuable thing they carry.",
+  },
+  lazarus:{
+    name:"LAZARUS Clone (LZ-9)",type:"RIVAL",species:"Human (Clone)",career:"Special Operations",
+    brawn:4,agility:4,intellect:3,cunning:3,willpower:3,presence:2,
+    soak:5,woundThreshold:15,
+    defense:{ranged:1,melee:1},
+    skills:[{name:"Ranged (Heavy)",rank:3},{name:"Brawl",rank:3},{name:"Athletics",rank:3},{name:"Stealth",rank:2},{name:"Vigilance",rank:3},{name:"Resilience",rank:2}],
+    talents:[
+      {name:"Adversary 1",desc:"Upgrade the difficulty of all combat checks targeting this character once."},
+      {name:"Lethal Blows",desc:"Add +10 per rank to Critical Injury results inflicted on opponents."},
+      {name:"Conditioning",desc:"Remove one setback from Resilience and Athletics checks."},
+    ],
+    weapons:[
+      {name:"Dual Blaster Pistols",damage:"6 each",critical:3,range:"Medium",qualities:"Paired, Stun Setting"},
+      {name:"Combat Knife",damage:"Brawn+1 (5)",critical:3,range:"Engaged",qualities:"Pierce 1"},
+    ],
+    abilities:["Enhanced Physiology — reduce Critical Injury result by 10","LAZARUS Protocol — if defeated, may be reactivated remotely (GM discretion — creates scenario hook)"],
+    equipment:"Dual blaster pistols, combat knife, heavy armour (Soak +1, Def +1), encrypted mission datapad, tracking implant",
+    desc:"LAZARUS clones are a rumoured Imperial special operations project — enhanced soldiers conditioned for high-value target elimination. LZ-9 has been tasked with something. The PCs don't know what. Yet.",
+    hook:"LZ-9 is following one of the PCs specifically. His mission parameters are classified even within the Imperial system. He will not explain himself. He will complete his objective.",
+  },
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,15 +829,309 @@ function GmCard({ title, children, col=1 }: { title:string; children:React.React
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STAT BLOCK COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
+  const npc = NPC_STATS[npcKey]
+  if (!npc) return null
+  const typeColor = npc.type==='NEMESIS'?'#7b1fa2':npc.type==='RIVAL'?'#1565c0':npc.type==='ALLY'?'#2e7d32':'#5d4037'
+  const typeBg   = npc.type==='NEMESIS'?'rgba(123,31,162,0.12)':npc.type==='RIVAL'?'rgba(21,101,192,0.12)':npc.type==='ALLY'?'rgba(46,125,50,0.12)':'rgba(93,64,55,0.12)'
+  const charVals = [npc.brawn,npc.agility,npc.intellect,npc.cunning,npc.willpower,npc.presence]
+  const charLabels = ['Brawn','Agility','Intellect','Cunning','Willpower','Presence']
+  return (
+    <div style={{background:'var(--panel)',border:`2px solid ${typeColor}`,borderRadius:8,overflow:'hidden',marginBottom:12}}>
+      <div style={{background:typeColor,padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+        <div>
+          <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:15,color:'#fff'}}>{npc.name}</div>
+          <div style={{fontSize:10,color:'rgba(255,255,255,0.75)',fontFamily:'var(--mono)',letterSpacing:'0.08em'}}>{npc.species} · {npc.career}</div>
+        </div>
+        <div style={{background:'rgba(255,255,255,0.18)',borderRadius:4,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{npc.type}</div>
+      </div>
+      {/* Characteristics */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:1,background:'var(--border)'}}>
+        {charLabels.map((c,i)=>(
+          <div key={c} style={{background:typeBg,padding:'5px 2px',textAlign:'center'}}>
+            <div style={{fontSize:8,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{c.slice(0,3)}</div>
+            <div style={{fontSize:20,fontWeight:700,fontFamily:'var(--display)',color:typeColor,lineHeight:1.1}}>{charVals[i]}</div>
+          </div>
+        ))}
+      </div>
+      {/* Derived stats */}
+      <div style={{display:'flex',gap:10,padding:'7px 12px',flexWrap:'wrap',borderBottom:'1px solid var(--border)'}}>
+        {[
+          {l:'Soak', v:npc.soak},{l:'Wounds',v:npc.woundThreshold},
+          ...(npc.strainThreshold!=null?[{l:'Strain',v:npc.strainThreshold}]:[]),
+          {l:'Def R',v:npc.defense.ranged},{l:'Def M',v:npc.defense.melee},
+          ...(npc.forceRating?[{l:'Force',v:npc.forceRating}]:[]),
+          ...(npc.adversary?[{l:'Adv',v:npc.adversary}]:[]),
+        ].map(s=>(
+          <div key={s.l} style={{textAlign:'center',minWidth:32}}>
+            <div style={{fontSize:8,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase'}}>{s.l}</div>
+            <div style={{fontSize:15,fontWeight:700,color:'var(--text-bright)',fontFamily:'var(--display)'}}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+      {/* Skills */}
+      <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
+        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Skills</div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+          {npc.skills.map(s=>(
+            <span key={s.name} style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'1px 5px',color:'var(--text-dim)'}}>
+              {s.name} {s.rank}
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* Weapons */}
+      <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
+        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Weapons</div>
+        {npc.weapons.map(w=>(
+          <div key={w.name} style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+            <span style={{color:'var(--text-bright)'}}>{w.name}</span>
+            {' — '}Dmg {w.damage} | Crit {w.critical} | {w.range}{w.qualities?` | ${w.qualities}`:''}
+          </div>
+        ))}
+      </div>
+      {/* Talents */}
+      {npc.talents.length>0 && (
+        <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
+          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Talents & Special Abilities</div>
+          {[...npc.talents.map(t=>({name:t.name,desc:t.desc})),...npc.abilities.map(a=>({name:'',desc:a}))].map((t,i)=>(
+            <div key={i} style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+              {t.name&&<span style={{color:'var(--text-bright)'}}>{t.name}: </span>}{t.desc}
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Equipment */}
+      <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
+        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>Equipment</div>
+        <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.4}}>{npc.equipment}</div>
+      </div>
+      {/* Description */}
+      <div style={{padding:'7px 12px',borderBottom:isGm?'1px solid var(--border)':'none'}}>
+        <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.55}}>{npc.desc}</div>
+      </div>
+      {/* GM Hook */}
+      {isGm && (
+        <div style={{padding:'7px 12px',background:'rgba(212,172,13,0.07)',borderTop:'1px solid rgba(212,172,13,0.25)'}}>
+          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+          <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{npc.hook}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOCATION MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState('overview')
+  const data = LOCATION_DATA[locId]
+  const loc  = LOCATIONS.find(l => l.id === locId)
+  if (!loc) return null
+  const typeColor = TYPE_META[loc.type]?.color || '#ffa726'
+
+  if (!data) {
+    return (
+      <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.88)',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>
+        <div style={{background:'var(--bg2)',border:`1px solid ${typeColor}`,borderRadius:8,padding:24,maxWidth:480,width:'92%'}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontFamily:'var(--display)',fontSize:18,color:typeColor,marginBottom:8}}>{loc.name}</div>
+          <div style={{color:'var(--text-dim)',fontSize:12,lineHeight:1.6,marginBottom:16}}>{loc.desc}</div>
+          <button onClick={onClose} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,padding:'4px 16px',color:'var(--text-dim)',cursor:'pointer',fontFamily:'var(--display)',fontSize:12,fontWeight:600}}>Close</button>
+        </div>
+      </div>
+    )
+  }
+
+  const tabs = [
+    {id:'overview',label:'Overview'},
+    ...(data.poi.length         ? [{id:'poi',   label:'Points of Interest'}] : []),
+    ...(data.shops.length       ? [{id:'shops', label:'Shops & Services'}]   : []),
+    ...(data.npcs.length        ? [{id:'npcs',  label:'People'}]             : []),
+    ...(data.quests.length      ? [{id:'quests',label:'Missions'}]           : []),
+    ...(isGm && data.dmNotes    ? [{id:'dm',    label:'⚙ DM Notes'}]         : []),
+  ]
+
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.88)',display:'flex',alignItems:'flex-start',justifyContent:'center',padding:'28px 12px',overflowY:'auto'}} onClick={onClose}>
+      <div style={{background:'var(--bg2)',border:`1px solid ${typeColor}`,borderRadius:8,width:'min(860px,98vw)',display:'flex',flexDirection:'column',maxHeight:'calc(100vh - 56px)',overflow:'hidden'}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
+        <div style={{borderBottom:`2px solid ${typeColor}`,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
+          <div style={{flex:1}}>
+            <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:20,color:typeColor,letterSpacing:'0.05em'}}>{loc.name}</div>
+            <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:2}}>
+              {TYPE_META[loc.type]?.label}
+              {loc.ly   ? `  ·  ${loc.ly} ly from base` : ''}
+              {loc.threat ? `  ·  ${loc.threat}` : ''}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',fontSize:18,lineHeight:1,cursor:'pointer',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>×</button>
+        </div>
+        {/* Tabs */}
+        <div style={{display:'flex',borderBottom:'1px solid var(--border)',flexShrink:0,overflowX:'auto'}}>
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id)}
+              style={{padding:'9px 15px',border:'none',background:'none',cursor:'pointer',
+                     fontFamily:'var(--display)',fontSize:12,fontWeight:600,letterSpacing:'0.06em',
+                     color:activeTab===t.id?typeColor:'var(--text-dim)',
+                     borderBottom:activeTab===t.id?`2px solid ${typeColor}`:'2px solid transparent',
+                     whiteSpace:'nowrap',transition:'color 0.15s'}}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {/* Content */}
+        <div style={{flex:1,overflowY:'auto',padding:18}}>
+          {activeTab==='overview' && (
+            <div>
+              <p style={{fontSize:13,color:'var(--text-bright)',lineHeight:1.75,marginBottom:14}}>{data.overview}</p>
+              <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',borderRadius:6,padding:12}}>
+                <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:5,textTransform:'uppercase',letterSpacing:'0.08em'}}>Atmosphere</div>
+                <p style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.65,fontStyle:'italic',margin:0}}>{data.atmosphere}</p>
+              </div>
+            </div>
+          )}
+          {activeTab==='poi' && (
+            <div>
+              {data.poi.map(p=>(
+                <div key={p.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
+                  <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor,marginBottom:4}}>{p.name}</div>
+                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{p.desc}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab==='shops' && (
+            <div>
+              {data.shops.map(s=>(
+                <div key={s.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
+                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor}}>{s.name}</div>
+                    <span style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{s.type}</span>
+                  </div>
+                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55,marginBottom:s.inventory?8:0}}>{s.desc}</div>
+                  {s.inventory && (
+                    <div style={{background:'rgba(0,0,0,0.25)',borderRadius:4,padding:'6px 10px'}}>
+                      <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Sample Inventory</div>
+                      <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.6}}>{s.inventory}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab==='npcs' && (
+            <div>
+              {data.npcs.map(n=>(
+                <div key={n.key}>
+                  {NPC_STATS[n.key] ? (
+                    <StatBlock npcKey={n.key} isGm={isGm} />
+                  ) : (
+                    <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:12}}>
+                      <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor,marginBottom:2}}>{n.name}</div>
+                      <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{n.role}</div>
+                      <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{n.desc}</div>
+                      {isGm && n.hook && (
+                        <div style={{marginTop:8,padding:'6px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
+                          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                          <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.5}}>{n.hook}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab==='quests' && (
+            <div>
+              {data.quests.map(q=>(
+                <div key={q.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:5}}>
+                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor}}>{q.name}</div>
+                    <span style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{q.type}</span>
+                  </div>
+                  <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6}}>Difficulty: {q.difficulty} · Reward: {q.reward}</div>
+                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{q.desc}</div>
+                  {isGm && (
+                    <div style={{marginTop:8,padding:'7px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
+                      <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                      <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{q.gmHook}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {activeTab==='dm' && isGm && data.dmNotes && (
+            <div style={{background:'rgba(212,172,13,0.07)',border:'1px solid rgba(212,172,13,0.3)',borderRadius:6,padding:16}}>
+              <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>DM Notes — {loc.name}</div>
+              <div style={{fontSize:12,color:'rgba(212,172,13,0.88)',lineHeight:1.75}}>{data.dmNotes}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADVERSARIES VIEW (GM only)
+// ─────────────────────────────────────────────────────────────────────────────
+function AdversariesView() {
+  const [search,     setSearch]     = useState('')
+  const [typeFilter, setTypeFilter] = useState('ALL')
+  const filtered = Object.entries(NPC_STATS).filter(([,npc]) => {
+    const matchSearch = !search || npc.name.toLowerCase().includes(search.toLowerCase()) || npc.career.toLowerCase().includes(search.toLowerCase())
+    const matchType   = typeFilter==='ALL' || npc.type===typeFilter
+    return matchSearch && matchType
+  })
+  return (
+    <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{padding:'12px 18px',borderBottom:'1px solid var(--border)',display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
+        <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:14,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Adversaries Dossier</div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or career…"
+          style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,padding:'4px 10px',
+                  color:'var(--text-bright)',fontFamily:'var(--mono)',fontSize:12,flex:1,minWidth:140,maxWidth:280}}/>
+        <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
+          {(['ALL','NEMESIS','RIVAL','ALLY','MINION'] as const).map(t=>(
+            <button key={t} onClick={()=>setTypeFilter(t)}
+              style={{padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:'var(--mono)',fontSize:10,fontWeight:700,
+                     border:`1px solid ${typeFilter===t?'rgba(212,172,13,0.5)':'var(--border)'}`,
+                     background:typeFilter===t?'rgba(212,172,13,0.1)':'var(--panel)',
+                     color:typeFilter===t?'var(--gold)':'var(--text-dim)'}}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:'auto',padding:14,display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:10,alignContent:'start'}}>
+        {filtered.map(([key])=>(
+          <StatBlock key={key} npcKey={key} isGm={true} />
+        ))}
+        {filtered.length===0 && (
+          <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:12,gridColumn:'1/-1',textAlign:'center',paddingTop:40}}>
+            No adversaries match your search.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GALAXY MAP
 // ─────────────────────────────────────────────────────────────────────────────
-function GalaxyMap({ showHidden }: { showHidden: boolean }) {
+function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [selected, setSelected]     = useState<string|null>(null)
   const [hover, setHover]           = useState<string|null>(null)
   const [pan, setPan]               = useState({x:0,y:0})
   const [zoom, setZoom]             = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [modalLocId, setModalLocId] = useState<string|null>(null)
   const isMobile = useIsMobile()
   const dragging      = useRef(false)
   const lastMouse     = useRef<{x:number,y:number}|null>(null)
@@ -546,6 +1421,15 @@ function GalaxyMap({ showHidden }: { showHidden: boolean }) {
                     {selLoc.threat}
                   </span>
                 </div>
+                {(LOCATION_DATA[selLoc.id] || true) && (
+                  <button onClick={()=>setModalLocId(selLoc.id)}
+                    style={{marginTop:8,width:'100%',background:'rgba(212,172,13,0.1)',
+                            border:'1px solid rgba(212,172,13,0.5)',borderRadius:4,padding:'7px',
+                            color:'var(--gold)',fontFamily:'var(--display)',fontSize:11,
+                            fontWeight:700,letterSpacing:'0.08em',cursor:'pointer',transition:'background 0.15s'}}>
+                    View Details
+                  </button>
+                )}
               </div>
             )}
             <div style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
@@ -571,6 +1455,7 @@ function GalaxyMap({ showHidden }: { showHidden: boolean }) {
           </div>
         </div>
       )}
+      {modalLocId && <LocationModal locId={modalLocId} isGm={isGm} onClose={()=>setModalLocId(null)} />}
     </div>
   )
 }
@@ -723,16 +1608,31 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
         {/* ── Skills ── */}
         <CardSection title="Skills">
           <div className="sr-skills-grid">
-            {Object.entries(char.skills||{}).map(([skill,rank]:any)=>{
-              const abbr    = SKILL_CHAR[skill]
-              const charKey = Object.keys(CHAR_ABBR).find(k=>CHAR_ABBR[k]===abbr)
-              const charVal = charKey ? (char.characteristics?.[charKey]||2) : 2
-              const prof    = Math.min(rank,charVal)
-              const abil    = Math.max(rank,charVal) - prof
+            {Object.entries({...DEFAULT_SKILLS,...(char.skills||{})}).map(([skill,rawVal]:any)=>{
+              const rank         = typeof rawVal==='object' ? (rawVal.rank??0) : (rawVal??0)
+              const charOverride = typeof rawVal==='object' ? rawVal.char : undefined
+              const defaultAbbr  = SKILL_CHAR[skill] || 'Br'
+              const abbr         = charOverride || defaultAbbr
+              const isCustom     = !!charOverride && charOverride !== defaultAbbr
+              const charKey      = Object.keys(CHAR_ABBR).find(k=>CHAR_ABBR[k]===abbr)
+              const charVal      = charKey ? (char.characteristics?.[charKey]||2) : 2
+              const prof         = Math.min(rank,charVal)
+              const abil         = Math.max(rank,charVal) - prof
               return (
-                <div key={skill} style={{display:'flex',alignItems:'center',gap:8,
-                                         padding:'4px 6px',borderRadius:4}}>
-                  <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',width:26}}>{abbr}</div>
+                <div key={skill} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 6px',borderRadius:4}}>
+                  <div
+                    onClick={()=>{
+                      const next = CHAR_ABBR_CYCLE[(CHAR_ABBR_CYCLE.indexOf(abbr)+1) % CHAR_ABBR_CYCLE.length]
+                      update(`skills.${skill}`, next===defaultAbbr ? rank : {rank, char:next})
+                    }}
+                    title={`Linked to ${abbr} — click to change`}
+                    style={{fontSize:10,fontFamily:'var(--mono)',width:30,textAlign:'center',
+                            cursor:'pointer',borderRadius:3,padding:'1px 2px',userSelect:'none',
+                            color:isCustom?'var(--gold)':'var(--text-dim)',
+                            background:isCustom?'rgba(212,172,13,0.1)':'transparent',
+                            border:isCustom?'1px solid rgba(212,172,13,0.35)':'1px solid transparent'}}>
+                    {abbr}
+                  </div>
                   <div style={{flex:1,fontSize:12,color:'var(--text)'}}>{skill}</div>
                   <div style={{display:'flex',gap:3}}>
                     {Array.from({length:prof}).map((_,i)=>(
@@ -750,9 +1650,9 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                                             justifyContent:'center',fontSize:9}}>—</div>}
                   </div>
                   <div style={{display:'flex',gap:2,alignItems:'center'}}>
-                    <SBtn onClick={()=>update(`skills.${skill}`,Math.max(0,rank-1))}>−</SBtn>
+                    <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.max(0,rank-1)}:Math.max(0,rank-1))}>−</SBtn>
                     <span style={{fontFamily:'var(--mono)',fontSize:11,width:14,textAlign:'center',color:'var(--text)'}}>{rank}</span>
-                    <SBtn onClick={()=>update(`skills.${skill}`,Math.min(5,rank+1))}>+</SBtn>
+                    <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.min(5,rank+1)}:Math.min(5,rank+1))}>+</SBtn>
                   </div>
                 </div>
               )
@@ -1802,10 +2702,11 @@ export default function App() {
   const isGm = auth?.role === 'gm'
 
   const ALL_TABS = [
-    {id:'gm',         label:'GM Dashboard', icon:'⚙',  gmOnly:true},
-    {id:'galaxy',     label:'Galaxy Map',   icon:'✦',  gmOnly:false},
-    {id:'chars',      label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false},
-    {id:'initiative', label:'Initiative',   icon:'⚡', gmOnly:true},
+    {id:'gm',          label:'GM Dashboard', icon:'⚙',  gmOnly:true},
+    {id:'galaxy',      label:'Galaxy Map',   icon:'✦',  gmOnly:false},
+    {id:'chars',       label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false},
+    {id:'initiative',  label:'Initiative',   icon:'⚡', gmOnly:true},
+    {id:'adversaries', label:'Adversaries',  icon:'⚔',  gmOnly:true},
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 
@@ -1908,7 +2809,8 @@ export default function App() {
           </div>
         )}
         {ready && tab==='gm'         && <div style={{height:'100%',overflowY:'auto'}}><GMDashboard/></div>}
-        {ready && tab==='galaxy'     && <GalaxyMap showHidden={isGm && showHidden}/>}
+        {ready && tab==='galaxy'     && <GalaxyMap showHidden={isGm && showHidden} isGm={!!isGm}/>}
+        {ready && tab==='adversaries'&& <AdversariesView/>}
         {ready && tab==='chars'      && <CharactersView isGm={!!isGm} userId={auth.id||''}/>}
         {ready && tab==='initiative' && <InitiativeTracker/>}
       </div>
