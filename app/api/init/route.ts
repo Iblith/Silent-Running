@@ -71,8 +71,12 @@ export async function POST() {
       notes            TEXT DEFAULT '',
       xp               INTEGER DEFAULT 0,
       total_xp         INTEGER DEFAULT 0,
+      owner_id         TEXT DEFAULT '',
       updated_at       TEXT DEFAULT (datetime('now'))
     )`)
+
+    // Migration: add owner_id to existing installs (safe to run multiple times)
+    await run(`ALTER TABLE characters ADD COLUMN owner_id TEXT DEFAULT ''`).catch(()=>{})
 
     await run(`CREATE TABLE IF NOT EXISTS initiative_slots (
       id         TEXT PRIMARY KEY,

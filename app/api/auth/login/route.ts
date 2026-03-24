@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     const token = await createSession(user.id)
     const res = NextResponse.json({
       ok: true,
+      id: user.id,
       username: user.username,
       role: user.role,
       characterId: user.character_id || '',

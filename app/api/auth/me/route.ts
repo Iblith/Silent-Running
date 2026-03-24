@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     const user = await getSession(req.cookies.get(COOKIE_NAME)?.value)
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     return NextResponse.json({
+      id: user.id,
       username: user.username,
       role: user.role,
       characterId: user.character_id || '',

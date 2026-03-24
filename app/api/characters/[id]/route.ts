@@ -5,7 +5,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { d1 } from '@/lib/db'
+import { getSession, COOKIE_NAME } from '@/lib/auth'
 import { deserialise } from '@/lib/characters'
+
+async function getUser(req: NextRequest) {
+  return getSession(req.cookies.get(COOKIE_NAME)?.value)
+}
 
 export async function GET(
   _: NextRequest,
@@ -89,11 +94,20 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    await d1('DELETE FROM characters WHERE id = ?', [params.id])
+    const user = await getUser(req)
+    if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
+    if (user.role === 'gm') {
+      await d1('DELETE FROM characters WHERE id = ?', [params.id])
+    } else {
+      const result = await d1<any>('DELETE FROM characters WHERE id = ? AND owner_id = ?', [params.id, user.id])
+      if (!result.length && result[0]?.changes === 0)
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

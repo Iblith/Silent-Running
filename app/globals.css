@@ -57,3 +57,19 @@ button { cursor: pointer; }
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* ── Mobile / touch ──────────────────────────────── */
+@media (max-width: 768px) {
+  html, body { overflow: hidden; }
+  input, select, textarea { font-size: 16px !important; } /* prevent iOS zoom on focus */
+}
+
+.sr-char-grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.sr-char-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sr-skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+
+@media (max-width: 768px) {
+  .sr-char-grid-6 { grid-template-columns: repeat(3, 1fr); }
+  .sr-char-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .sr-skills-grid { grid-template-columns: 1fr; }
+}

@@ -183,6 +183,17 @@ function useDebounce<T>(value: T, delay=900): T {
   return dv
 }
 
+function useIsMobile(breakpoint=768) {
+  const [m, setM] = useState(false)
+  useEffect(() => {
+    const check = () => setM(window.innerWidth <= breakpoint)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return m
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL SHARED UI PIECES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,14 +252,17 @@ function GmCard({ title, children, col=1 }: { title:string; children:React.React
 // ─────────────────────────────────────────────────────────────────────────────
 function GalaxyMap({ showHidden }: { showHidden: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [selected, setSelected] = useState<string|null>(null)
-  const [hover, setHover]       = useState<string|null>(null)
-  const [pan, setPan]           = useState({x:0,y:0})
-  const [zoom, setZoom]         = useState(1)
-  const dragging = useRef(false)
-  const lastMouse = useRef<{x:number,y:number}|null>(null)
-  const dragDist  = useRef(0)
-  const starsRef  = useRef<any[]|null>(null)
+  const [selected, setSelected]     = useState<string|null>(null)
+  const [hover, setHover]           = useState<string|null>(null)
+  const [pan, setPan]               = useState({x:0,y:0})
+  const [zoom, setZoom]             = useState(1)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const isMobile = useIsMobile()
+  const dragging      = useRef(false)
+  const lastMouse     = useRef<{x:number,y:number}|null>(null)
+  const dragDist      = useRef(0)
+  const lastPinchDist = useRef<number|null>(null)
+  const starsRef      = useRef<any[]|null>(null)
 
   const isHidden = (loc:any) => (loc.type==='hidden'||loc.type==='command') && !showHidden
   const toScreen = (x:number,y:number) => ({x:x*zoom+pan.x, y:y*zoom+pan.y})
@@ -381,13 +395,15 @@ function GalaxyMap({ showHidden }: { showHidden: boolean }) {
 
   const selLoc = LOCATIONS.find(l=>l.id===selected)
 
+  const showSidebar = isMobile ? sidebarOpen : true
+
   return (
-    <div style={{height:'100%',display:'flex'}}>
+    <div style={{height:'100%',display:'flex',position:'relative'}}>
       {/* Canvas */}
       <div style={{flex:1,position:'relative',overflow:'hidden',
                    background:'radial-gradient(ellipse at 30% 50%, rgba(10,20,40,0.8) 0%, #04060C 70%)'}}>
         <canvas ref={canvasRef}
-          style={{cursor:dragging.current?'grabbing':'grab',display:'block',width:'100%',height:'100%'}}
+          style={{cursor:dragging.current?'grabbing':'grab',display:'block',width:'100%',height:'100%',touchAction:'none'}}
           onMouseDown={e=>{dragging.current=false;dragDist.current=0;lastMouse.current={x:e.clientX,y:e.clientY}}}
           onMouseMove={e=>{
             if(lastMouse.current){
@@ -418,67 +434,143 @@ function GalaxyMap({ showHidden }: { showHidden: boolean }) {
             setPan(p=>({x:mx-(mx-p.x)*f,y:my-(my-p.y)*f}))
             setZoom(z=>Math.min(3,Math.max(0.35,z*f)))
           }}
+          onTouchStart={e=>{
+            e.preventDefault()
+            if(e.touches.length===1){
+              dragging.current=false;dragDist.current=0
+              lastMouse.current={x:e.touches[0].clientX,y:e.touches[0].clientY}
+            } else if(e.touches.length===2){
+              lastPinchDist.current=Math.hypot(
+                e.touches[1].clientX-e.touches[0].clientX,
+                e.touches[1].clientY-e.touches[0].clientY
+              )
+            }
+          }}
+          onTouchMove={e=>{
+            e.preventDefault()
+            if(e.touches.length===1&&lastMouse.current){
+              const dx=e.touches[0].clientX-lastMouse.current.x
+              const dy=e.touches[0].clientY-lastMouse.current.y
+              dragDist.current+=Math.abs(dx)+Math.abs(dy)
+              if(dragDist.current>4)dragging.current=true
+              if(dragging.current){
+                setPan(p=>({x:p.x+dx,y:p.y+dy}))
+                lastMouse.current={x:e.touches[0].clientX,y:e.touches[0].clientY}
+              }
+            } else if(e.touches.length===2&&lastPinchDist.current!==null){
+              const dist=Math.hypot(
+                e.touches[1].clientX-e.touches[0].clientX,
+                e.touches[1].clientY-e.touches[0].clientY
+              )
+              const f=dist/lastPinchDist.current
+              const rect=canvasRef.current!.getBoundingClientRect()
+              const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-rect.left
+              const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-rect.top
+              setPan(p=>({x:cx-(cx-p.x)*f,y:cy-(cy-p.y)*f}))
+              setZoom(z=>Math.min(3,Math.max(0.35,z*f)))
+              lastPinchDist.current=dist
+            }
+          }}
+          onTouchEnd={e=>{
+            if(!dragging.current&&e.changedTouches.length===1&&e.touches.length===0){
+              const rect=canvasRef.current!.getBoundingClientRect()
+              const t=e.changedTouches[0]
+              const w=toWorld(t.clientX-rect.left,t.clientY-rect.top)
+              const n=nodeAt(w.x,w.y)
+              setSelected(n?(n.id===selected?null:n.id):null)
+              if(isMobile&&n) setSidebarOpen(true)
+            }
+            if(e.touches.length===0){dragging.current=false;lastMouse.current=null;lastPinchDist.current=null}
+          }}
         />
+        {/* Mobile toggle button */}
+        {isMobile && (
+          <button onClick={()=>setSidebarOpen(o=>!o)}
+            style={{position:'absolute',bottom:16,right:16,width:44,height:44,borderRadius:'50%',
+                    background:'var(--panel)',border:'1px solid var(--border2)',
+                    color:'var(--gold)',fontSize:18,display:'flex',alignItems:'center',
+                    justifyContent:'center',zIndex:10,boxShadow:'0 2px 12px rgba(0,0,0,0.6)'}}>
+            ☰
+          </button>
+        )}
       </div>
-      {/* Sidebar */}
-      <div style={{width:300,flexShrink:0,background:'var(--bg2)',borderLeft:'1px solid var(--border)',
-                   display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
-                     fontFamily:'var(--display)',fontSize:13,fontWeight:700,
-                     letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>
-          Navigation Data
-        </div>
-        <div style={{flex:1,overflowY:'auto',padding:12}}>
-          <p style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
-            Click a node to select. Scroll to zoom. Drag to pan.
-          </p>
-          {selLoc && (
-            <div style={{background:'rgba(212,172,13,0.06)',border:'1px solid rgba(212,172,13,0.4)',
-                         borderRadius:6,padding:12,marginBottom:12}}>
-              <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,color:'var(--text-bright)',marginBottom:4}}>
-                {selLoc.name}
-              </div>
-              <div style={{fontSize:10,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
-                           color:TYPE_META[selLoc.type]?.color,marginBottom:6}}>
-                {TYPE_META[selLoc.type]?.label}
-              </div>
-              <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
-              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                {selLoc.ly && (
-                  <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,255,255,0.06)',
-                                borderRadius:3,padding:'2px 6px',color:'var(--text-dim)'}}>
-                    {selLoc.ly} ly
-                  </span>
-                )}
-                <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,100,100,0.08)',
-                              borderRadius:3,padding:'2px 6px',color:'rgba(255,120,120,0.8)'}}>
-                  {selLoc.threat}
-                </span>
-              </div>
+
+      {/* Sidebar — full-screen overlay on mobile, fixed panel on desktop */}
+      {showSidebar && (
+        <div style={isMobile ? {
+          position:'absolute',inset:0,zIndex:20,background:'var(--bg2)',
+          display:'flex',flexDirection:'column',overflow:'hidden'
+        } : {
+          width:300,flexShrink:0,background:'var(--bg2)',
+          borderLeft:'1px solid var(--border)',display:'flex',flexDirection:'column',overflow:'hidden'
+        }}>
+          <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
+                       display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
+                         letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>
+              Navigation Data
             </div>
-          )}
-          <div style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
-                       letterSpacing:'0.1em',textTransform:'uppercase',marginTop:8,marginBottom:8}}>
-            All Locations
+            {isMobile && (
+              <button onClick={()=>setSidebarOpen(false)}
+                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:20,cursor:'pointer',lineHeight:1}}>
+                ×
+              </button>
+            )}
           </div>
-          {LOCATIONS.filter(l=>l.type!=='hazard'&&(!isHidden(l))).map(loc=>(
-            <div key={loc.id}
-              onClick={()=>setSelected(loc.id===selected?null:loc.id)}
-              style={{background:selected===loc.id?'rgba(212,172,13,0.06)':'var(--panel)',
-                      border:`1px solid ${selected===loc.id?'rgba(212,172,13,0.4)':'var(--border)'}`,
-                      borderRadius:6,padding:'8px 10px',marginBottom:5,cursor:'pointer',transition:'all 0.2s'}}>
-              <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>
-                {loc.name}
+          <div style={{flex:1,overflowY:'auto',padding:12}}>
+            {!isMobile && (
+              <p style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
+                Click a node to select. Scroll to zoom. Drag to pan.
+              </p>
+            )}
+            {selLoc && (
+              <div style={{background:'rgba(212,172,13,0.06)',border:'1px solid rgba(212,172,13,0.4)',
+                           borderRadius:6,padding:12,marginBottom:12}}>
+                <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,color:'var(--text-bright)',marginBottom:4}}>
+                  {selLoc.name}
+                </div>
+                <div style={{fontSize:10,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                             color:TYPE_META[selLoc.type]?.color,marginBottom:6}}>
+                  {TYPE_META[selLoc.type]?.label}
+                </div>
+                <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                  {selLoc.ly && (
+                    <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,255,255,0.06)',
+                                  borderRadius:3,padding:'2px 6px',color:'var(--text-dim)'}}>
+                      {selLoc.ly} ly
+                    </span>
+                  )}
+                  <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,100,100,0.08)',
+                                borderRadius:3,padding:'2px 6px',color:'rgba(255,120,120,0.8)'}}>
+                    {selLoc.threat}
+                  </span>
+                </div>
               </div>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
-                           color:TYPE_META[loc.type]?.color}}>
-                {TYPE_META[loc.type]?.label}
-                {loc.ly ? `  ·  ${loc.ly} ly` : ''}
-              </div>
+            )}
+            <div style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
+                         letterSpacing:'0.1em',textTransform:'uppercase',marginTop:8,marginBottom:8}}>
+              All Locations
             </div>
-          ))}
+            {LOCATIONS.filter(l=>l.type!=='hazard'&&(!isHidden(l))).map(loc=>(
+              <div key={loc.id}
+                onClick={()=>{setSelected(loc.id===selected?null:loc.id);if(isMobile)setSidebarOpen(false)}}
+                style={{background:selected===loc.id?'rgba(212,172,13,0.06)':'var(--panel)',
+                        border:`1px solid ${selected===loc.id?'rgba(212,172,13,0.4)':'var(--border)'}`,
+                        borderRadius:6,padding:'8px 10px',marginBottom:5,cursor:'pointer',transition:'all 0.2s'}}>
+                <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>
+                  {loc.name}
+                </div>
+                <div style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                             color:TYPE_META[loc.type]?.color}}>
+                  {TYPE_META[loc.type]?.label}
+                  {loc.ly ? `  ·  ${loc.ly} ly` : ''}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -569,7 +661,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
         {/* ── Characteristics ── */}
         <CardSection title="Characteristics">
-          <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:8}}>
+          <div className="sr-char-grid-6">
             {CHAR_KEYS.map(k=>(
               <div key={k} style={{background:'var(--panel)',border:'1px solid var(--border)',
                                    borderRadius:6,padding:'10px 8px',textAlign:'center'}}>
@@ -590,7 +682,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
         {/* ── Derived Stats ── */}
         <CardSection title="Derived Statistics">
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+          <div className="sr-char-grid-4">
             {([['Wounds','wounds',derivedWT,'var(--red)'],
                ['Strain','strain',derivedST,'#E67E22']] as [string,string,number,string][]).map(([lbl,field,max,col])=>(
               <div key={field} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
@@ -630,7 +722,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
         {/* ── Skills ── */}
         <CardSection title="Skills">
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+          <div className="sr-skills-grid">
             {Object.entries(char.skills||{}).map(([skill,rank]:any)=>{
               const abbr    = SKILL_CHAR[skill]
               const charKey = Object.keys(CHAR_ABBR).find(k=>CHAR_ABBR[k]===abbr)
@@ -702,7 +794,8 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
         {/* ── Weapons ── */}
         <CardSection title="Weapons">
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
+          <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as any}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:480}}>
             <thead>
               <tr>{['Name','Skill','Dam','Crit','Range','Qualities',''].map(h=>(
                 <th key={h} style={{fontFamily:'var(--mono)',fontSize:9,textTransform:'uppercase',
@@ -746,6 +839,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </tr>
             </tbody>
           </table>
+          </div>
         </CardSection>
 
         {/* ── Notes ── */}
@@ -765,21 +859,24 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 // ─────────────────────────────────────────────────────────────────────────────
 // CHARACTERS VIEW
 // ─────────────────────────────────────────────────────────────────────────────
-function CharactersView({ isGm, playerCharId }: { isGm: boolean; playerCharId: string | null }) {
-  const [chars, setChars]     = useState<any[]>([])
+function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
+  const [chars, setChars]       = useState<any[]>([])
   const [activeId, setActiveId] = useState<string|null>(null)
-  const [saving, setSaving]   = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [saving, setSaving]     = useState(false)
+  const [loading, setLoading]   = useState(true)
+  const isMobile                = useIsMobile()
 
-  const visibleChars  = isGm ? chars : chars.filter(c=>c.id===playerCharId)
+  // On mobile: show list pane or sheet pane, not both
+  const showSheet = !isMobile || activeId !== null
+  const showList  = !isMobile || activeId === null
+
   const activeChar    = chars.find(c=>c.id===activeId)
   const debouncedChar = useDebounce(activeChar, 1000)
 
   useEffect(() => {
     api('/api/characters').then(d=>{
       setChars(d)
-      // Players auto-select their own character
-      if (!isGm && playerCharId) setActiveId(playerCharId)
+      if (!isGm && d.length > 0) setActiveId(d[0].id)
       setLoading(false)
     }).catch(()=>setLoading(false))
   }, [])
@@ -811,29 +908,29 @@ function CharactersView({ isGm, playerCharId }: { isGm: boolean; playerCharId: s
   return (
     <div style={{height:'100%',display:'flex'}}>
       {/* List sidebar */}
-      <div style={{width:260,flexShrink:0,background:'var(--bg2)',borderRight:'1px solid var(--border)',
-                   display:'flex',flexDirection:'column'}}>
+      {showList && <div style={isMobile
+        ? {flex:1,background:'var(--bg2)',display:'flex',flexDirection:'column'}
+        : {width:260,flexShrink:0,background:'var(--bg2)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column'}}>
         <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
                      display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
-                       letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>{isGm ? 'Characters' : 'My Character'}</div>
-          {isGm && (
-            <button onClick={addChar}
-              style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
-                      background:'var(--panel)',color:'var(--text-dim)',fontSize:18,cursor:'pointer',
-                      display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
-          )}
+                       letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Characters</div>
+          <button onClick={addChar}
+            style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
+                    background:'var(--panel)',color:'var(--text-dim)',fontSize:18,cursor:'pointer',
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:8}}>
           {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>Loading...</div>}
-          {!loading&&visibleChars.length===0 && (
+          {!loading&&chars.length===0 && (
             <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>
-              {isGm ? <>{`No characters yet.`}<br/>{`Click + to create one.`}</> : 'No character assigned yet.'}
+              {`No characters yet.`}<br/>{`Click + to create one.`}
             </div>
           )}
-          {visibleChars.map(c=>{
+          {chars.map(c=>{
             const col=CHAR_COLORS[c.colorIdx]||CHAR_COLORS[0]
             const ini=(c.name||'??').split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()||'??'
+            const canDelete = isGm || c.ownerId === userId
             return (
               <div key={c.id} onClick={()=>setActiveId(c.id)}
                 style={{padding:'9px 10px',borderRadius:6,cursor:'pointer',marginBottom:2,
@@ -849,7 +946,7 @@ function CharactersView({ isGm, playerCharId }: { isGm: boolean; playerCharId: s
                   <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:600,color:'var(--text-bright)'}}>{c.name}</div>
                   <div style={{fontSize:10,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
                 </div>
-                {isGm && (
+                {canDelete && (
                   <button onClick={e=>{e.stopPropagation();deleteChar(c.id)}}
                     style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:14,cursor:'pointer'}}>×</button>
                 )}
@@ -863,21 +960,37 @@ function CharactersView({ isGm, playerCharId }: { isGm: boolean; playerCharId: s
             Saving to database…
           </div>
         )}
-      </div>
+      </div>}
       {/* Sheet area */}
-      {activeChar
-        ? <CharacterSheet key={activeChar.id} char={activeChar} onChange={c=>updateChar(activeChar.id,c)}/>
-        : (
-          <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
-                       justifyContent:'center',gap:12,color:'var(--text-dim)',background:'var(--bg)'}}>
-            <div style={{fontSize:48,opacity:0.3}}>◈</div>
-            <div style={{fontFamily:'var(--display)',fontSize:16,letterSpacing:'0.08em'}}>
-              {isGm ? 'Select or create a character' : 'No character assigned'}
+      {showSheet && (
+        activeChar
+          ? <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,overflow:'hidden'}}>
+              {isMobile && (
+                <div style={{padding:'10px 14px',borderBottom:'1px solid var(--border)',
+                             background:'var(--bg2)',display:'flex',alignItems:'center',gap:10}}>
+                  <button onClick={()=>setActiveId(null)}
+                    style={{background:'none',border:'none',color:'var(--gold)',fontFamily:'var(--display)',
+                            fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+                    ← Back
+                  </button>
+                  <span style={{fontFamily:'var(--display)',fontSize:13,fontWeight:600,color:'var(--text-bright)'}}>
+                    {activeChar.name}
+                  </span>
+                </div>
+              )}
+              <CharacterSheet key={activeChar.id} char={activeChar} onChange={c=>updateChar(activeChar.id,c)}/>
             </div>
-            {isGm && <Btn variant="primary" onClick={addChar}>Create Character</Btn>}
-          </div>
-        )
-      }
+          : (
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
+                         justifyContent:'center',gap:12,color:'var(--text-dim)',background:'var(--bg)'}}>
+              <div style={{fontSize:48,opacity:0.3}}>◈</div>
+              <div style={{fontFamily:'var(--display)',fontSize:16,letterSpacing:'0.08em'}}>
+                Select or create a character
+              </div>
+              <Btn variant="primary" onClick={addChar}>{'Create Character'}</Btn>
+            </div>
+          )
+      )}
     </div>
   )
 }
@@ -1651,8 +1764,9 @@ export default function App() {
   const [topHeat, setTopHeat]       = useState(0)
   const [topSession, setTopSession] = useState(1)
   const [ready, setReady]           = useState(false)
-  const [auth, setAuth]             = useState<{username:string,role:string,characterId:string}|null>(null)
+  const [auth, setAuth]             = useState<{id:string,username:string,role:string,characterId:string}|null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  const isMobile = useIsMobile()
 
   // On mount: init DB tables, then check if already logged in
   useEffect(() => {
@@ -1714,27 +1828,31 @@ export default function App() {
         <div style={{position:'absolute',bottom:0,left:0,right:0,height:1,
                      background:'linear-gradient(90deg,transparent,var(--red),var(--gold),var(--red),transparent)'}}/>
 
-        <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:700,color:'var(--gold)',
-                     letterSpacing:'0.12em',textTransform:'uppercase',marginRight:32,whiteSpace:'nowrap'}}>
-          Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
-        </div>
+        {!isMobile && (
+          <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:700,color:'var(--gold)',
+                       letterSpacing:'0.12em',textTransform:'uppercase',marginRight:32,whiteSpace:'nowrap'}}>
+            Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
+          </div>
+        )}
 
-        <nav style={{display:'flex',gap:2,flex:1}}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              style={{padding:'0 16px',height:52,border:'none',background:'none',
-                      fontFamily:'var(--display)',fontSize:13,fontWeight:600,
-                      letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',
-                      color:tab===t.id?'var(--gold)':'var(--text-dim)',transition:'all 0.2s',
-                      display:'flex',alignItems:'center',gap:8,
-                      borderBottom:tab===t.id?'2px solid var(--gold)':'2px solid transparent'}}>
-              <span style={{fontSize:14}}>{t.icon}</span>{t.label}
-            </button>
-          ))}
-        </nav>
+        {!isMobile && (
+          <nav style={{display:'flex',gap:2,flex:1}}>
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)}
+                style={{padding:'0 16px',height:52,border:'none',background:'none',
+                        fontFamily:'var(--display)',fontSize:13,fontWeight:600,
+                        letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',
+                        color:tab===t.id?'var(--gold)':'var(--text-dim)',transition:'all 0.2s',
+                        display:'flex',alignItems:'center',gap:8,
+                        borderBottom:tab===t.id?'2px solid var(--gold)':'2px solid transparent'}}>
+                <span style={{fontSize:14}}>{t.icon}</span>{t.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
-        <div style={{display:'flex',alignItems:'center',gap:14,marginLeft:'auto'}}>
-          {isGm && tab==='galaxy' && (
+        <div style={{display:'flex',alignItems:'center',gap:isMobile?10:14,marginLeft:'auto'}}>
+          {!isMobile && isGm && tab==='galaxy' && (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div onClick={()=>setShowHidden(h=>!h)}
                 style={{width:36,height:20,borderRadius:10,cursor:'pointer',transition:'background 0.2s',
@@ -1747,20 +1865,24 @@ export default function App() {
               <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>Show Hidden</span>
             </div>
           )}
-          <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>
-            <span>HEAT</span>
-            {Array.from({length:10}).map((_,i)=>(
-              <div key={i} style={{width:8,height:8,borderRadius:1,
-                                   background:i<topHeat?(i>=7?'var(--red)':'#E67E22'):'rgba(255,255,255,0.1)',
-                                   animation:i<topHeat&&i>=7?'pulse 1s ease-in-out infinite':''}}/>
-            ))}
-            <span style={{color:topHeat>=7?'#ef5350':topHeat>=4?'#FF9800':'var(--text-dim)'}}>{topHeat}/10</span>
-          </div>
-          <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',
-                       background:'var(--panel)',border:'1px solid var(--border)',
-                       borderRadius:4,padding:'3px 8px'}}>
-            Session {topSession}
-          </div>
+          {!isMobile && (
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>
+              <span>HEAT</span>
+              {Array.from({length:10}).map((_,i)=>(
+                <div key={i} style={{width:8,height:8,borderRadius:1,
+                                     background:i<topHeat?(i>=7?'var(--red)':'#E67E22'):'rgba(255,255,255,0.1)',
+                                     animation:i<topHeat&&i>=7?'pulse 1s ease-in-out infinite':''}}/>
+              ))}
+              <span style={{color:topHeat>=7?'#ef5350':topHeat>=4?'#FF9800':'var(--text-dim)'}}>{topHeat}/10</span>
+            </div>
+          )}
+          {!isMobile && (
+            <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',
+                         background:'var(--panel)',border:'1px solid var(--border)',
+                         borderRadius:4,padding:'3px 8px'}}>
+              Session {topSession}
+            </div>
+          )}
           {/* User badge + logout */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
             <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>{auth.username}</span>
@@ -1777,7 +1899,7 @@ export default function App() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{flex:1,overflow:'hidden'}}>
+      <div style={{flex:1,overflow:'hidden',marginBottom:isMobile?52:0}}>
         {!ready && (
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',
                        color:'var(--text-dim)',fontFamily:'var(--mono)',gap:12}}>
@@ -1787,9 +1909,29 @@ export default function App() {
         )}
         {ready && tab==='gm'         && <div style={{height:'100%',overflowY:'auto'}}><GMDashboard/></div>}
         {ready && tab==='galaxy'     && <GalaxyMap showHidden={isGm && showHidden}/>}
-        {ready && tab==='chars'      && <CharactersView isGm={!!isGm} playerCharId={isGm ? null : (auth.characterId||null)}/>}
+        {ready && tab==='chars'      && <CharactersView isGm={!!isGm} userId={auth.id||''}/>}
         {ready && tab==='initiative' && <InitiativeTracker/>}
       </div>
+
+      {/* ── Mobile Bottom Nav ── */}
+      {isMobile && (
+        <nav style={{position:'fixed',bottom:0,left:0,right:0,height:52,
+                     display:'flex',background:'linear-gradient(90deg,#080E1C 0%,#0A1228 50%,#080E1C 100%)',
+                     borderTop:'1px solid rgba(255,255,255,0.14)',zIndex:200}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{flex:1,border:'none',background:'none',cursor:'pointer',
+                      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                      gap:3,padding:'4px 0',
+                      borderTop:tab===t.id?'2px solid var(--gold)':'2px solid transparent',
+                      color:tab===t.id?'var(--gold)':'var(--text-dim)'}}>
+              <span style={{fontSize:18}}>{t.icon}</span>
+              <span style={{fontFamily:'var(--display)',fontSize:9,fontWeight:600,
+                            letterSpacing:'0.06em',textTransform:'uppercase'}}>{t.label}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   )
 }

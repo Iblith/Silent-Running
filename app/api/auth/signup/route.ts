@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     // Auto-login after signup
     const token = await createSession(id)
-    const res = NextResponse.json({ ok: true, username: username.toLowerCase().trim(), role: 'player', characterId: '' })
+    const res = NextResponse.json({ ok: true, id, username: username.toLowerCase().trim(), role: 'player', characterId: '' })
     res.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
