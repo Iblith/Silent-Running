@@ -1553,7 +1553,7 @@ function GMDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (auth: {username:string,role:string,characterId:string}) => void }) {
+function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,role:string,characterId:string}) => void }) {
   const [mode, setMode]         = useState<'login'|'signup'>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
