@@ -41,6 +41,9 @@ const INITIAL_CAMPAIGN = {
   missionStatus:{} as Record<string,string>,
   shipUpgrades:{} as Record<string,boolean>,
   gmNotes:'',
+  duty:0, tier:1,
+  crewCriticals:[] as any[],
+  shipCriticals:[] as any[],
 }
 
 const MISSIONS = [
@@ -72,6 +75,63 @@ const SHIP_UPGRADES = [
   {id:'han2',  name:'Expanded Hangar (2)',    cost:15, branch:'F'},
   {id:'han3',  name:'Full Wing Bay (4)',       cost:20, branch:'F'},
   {id:'stealth_han',name:'Stealth Hangar Shielding',cost:10,branch:'F'},
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRITICAL INJURY / VEHICLE CRITICAL HIT TABLES
+// ─────────────────────────────────────────────────────────────────────────────
+const CREW_CRIT: {lo:number,hi:number,sev:number,name:string,eff:string}[] = [
+  {lo:1,  hi:5,  sev:1,name:'Minor Nick',          eff:'1 strain'},
+  {lo:6,  hi:10, sev:1,name:'Slowed',               eff:'Can only act during last allied initiative slot on next turn'},
+  {lo:11, hi:15, sev:1,name:'Sudden Jolt',          eff:'Drop item in hand'},
+  {lo:16, hi:20, sev:1,name:'Distracted',           eff:'Cannot perform free maneuver next turn'},
+  {lo:21, hi:25, sev:1,name:'Off-Balance',          eff:'+boost to next skill check'},
+  {lo:26, hi:30, sev:1,name:'Discouraging Wound',   eff:'Flip light side Destiny Point to dark side (reverse for NPC)'},
+  {lo:31, hi:35, sev:1,name:'Stunned',              eff:'Staggered until end of next turn'},
+  {lo:36, hi:40, sev:1,name:'Stinger',              eff:'+setback to next check'},
+  {lo:41, hi:45, sev:2,name:'Bowled Over',          eff:'Knocked prone, +1 strain'},
+  {lo:46, hi:50, sev:2,name:'Head Ringer',          eff:'+setback to Intellect/Cunning checks until end of encounter'},
+  {lo:51, hi:55, sev:2,name:'Fearsome Wound',       eff:'+setback to Presence/Willpower checks until end of encounter'},
+  {lo:56, hi:60, sev:2,name:'Agonizing Wound',      eff:'+setback to Brawn/Agility checks until end of encounter'},
+  {lo:61, hi:65, sev:2,name:'Slightly Dazed',       eff:'Disoriented until end of encounter'},
+  {lo:66, hi:70, sev:2,name:'Scattered Senses',     eff:'Gains no boost dice until end of encounter'},
+  {lo:71, hi:75, sev:2,name:'Hamstrung',            eff:'Lose free maneuver until end of encounter'},
+  {lo:76, hi:80, sev:2,name:'Overpowered',          eff:'Attacker may immediately attempt another free attack with same pool'},
+  {lo:81, hi:85, sev:2,name:'Winded',               eff:'Cannot voluntarily suffer strain until end of encounter'},
+  {lo:86, hi:90, sev:2,name:'Compromised',          eff:'+setback until end of encounter'},
+  {lo:91, hi:95, sev:3,name:'At the Brink',         eff:'Suffer 1 strain per action until healed'},
+  {lo:96, hi:100,sev:3,name:'Crippled',             eff:'One limb impaired until healed/replaced. +setback to all checks using that limb'},
+  {lo:101,hi:105,sev:3,name:'Maimed',               eff:'One limb permanently lost. Cannot use limb for actions. All other actions +boost'},
+  {lo:106,hi:110,sev:3,name:'Horrific Injury',      eff:'-1 penalty to random characteristic until healed (1–3 Br, 4–6 Ag, 7 Int, 8 Cu, 9 Pr, 10 Wi)'},
+  {lo:111,hi:115,sev:3,name:'Temporarily Lame',     eff:'Cannot perform more than 1 maneuver per turn until healed'},
+  {lo:116,hi:120,sev:3,name:'Blinded',              eff:'Cannot see. +2 setback to all checks. +3 setback to Perception and Vigilance'},
+  {lo:121,hi:125,sev:3,name:'Knocked Senseless',    eff:'Staggered until end of encounter'},
+  {lo:126,hi:130,sev:4,name:'Gruesome Injury',      eff:'Permanent -1 to random characteristic (1–3 Br, 4–6 Ag, 7 Int, 8 Cu, 9 Pr, 10 Wi)'},
+  {lo:131,hi:140,sev:4,name:'Bleeding Out',         eff:'Suffer 1 wound and 1 strain per turn. +1 Critical per 5 wounds beyond threshold'},
+  {lo:141,hi:150,sev:4,name:'The End is Nigh',      eff:'Character dies after last Initiative slot of next round'},
+  {lo:151,hi:999,sev:5,name:'Dead',                 eff:'Character is dead'},
+]
+
+const SHIP_CRIT: {lo:number,hi:number,sev:number,name:string,eff:string}[] = [
+  {lo:1,  hi:9,  sev:1,name:'Mechanical Stress',      eff:'+1 system strain'},
+  {lo:10, hi:18, sev:1,name:'Jostled',                eff:'Small explosion. Crew suffer +1 strain and are disoriented for 1 round'},
+  {lo:19, hi:27, sev:1,name:'Losing Power to Shields',eff:'-1 defense in a defense zone until repaired. If no defense, -1 strain'},
+  {lo:28, hi:36, sev:1,name:'Knocked Off Course',     eff:'Next turn: pilot cannot execute maneuvers, must make Piloting check (difficulty = speed)'},
+  {lo:37, hi:45, sev:1,name:'Tailspin',               eff:'All ship attacks +2 setback and all crew immobilized until end of pilot\'s next turn'},
+  {lo:46, hi:54, sev:1,name:'Component Hit',          eff:'One component inoperable until end of next round'},
+  {lo:55, hi:63, sev:2,name:'Shields Failing',        eff:'-1 defense in all zones until repaired. If no defense, -2 system strain'},
+  {lo:64, hi:72, sev:2,name:'Navicomputer Failure',   eff:'Navicomputer (or astromech) fails until repaired. Navigation systems fly blind'},
+  {lo:73, hi:81, sev:2,name:'Power Fluctuations',     eff:'Pilot cannot voluntarily inflict system strain until repaired'},
+  {lo:82, hi:90, sev:3,name:'Shields Down',           eff:'Defense in affected zone = 0, -1 defense in all other zones until repaired. If no defense, -4 system strain'},
+  {lo:91, hi:99, sev:3,name:'Engine Damaged',         eff:'-1 speed (minimum 1) until repaired'},
+  {lo:100,hi:108,sev:3,name:'Shield Overload',        eff:'-2 system strain. Defense = 0 in all zones. Cannot repair until end of encounter. If no defense, -1 armor'},
+  {lo:109,hi:117,sev:3,name:'Engines Down',           eff:'Speed = 0. Cannot perform maneuvers until repaired. Continues on present course due to momentum'},
+  {lo:118,hi:126,sev:3,name:'Major System Failure',   eff:'One randomly chosen component inoperable until repaired'},
+  {lo:127,hi:133,sev:4,name:'Major Hull Breach',      eff:'Silhouette 4+: depressurize in rounds equal to silhouette. Partially depressurized at GM\'s discretion'},
+  {lo:134,hi:138,sev:4,name:'Destabilized',           eff:'Hull Trauma Threshold and System Strain Threshold reduced to ½ original values until repaired'},
+  {lo:139,hi:144,sev:4,name:'Fire!',                  eff:'-2 system strain. Crew may be caught in fire. Takes 1 round per 2 silhouette to extinguish (Cool + Vigilance checks)'},
+  {lo:145,hi:153,sev:4,name:'Breaking Up',            eff:'Ship completely destroyed at end of next round'},
+  {lo:154,hi:999,sev:5,name:'Vaporized',              eff:'Ship destroyed in an impressive fireball. Nothing survives'},
 ]
 
 const LOCATIONS = [
@@ -783,7 +843,7 @@ function SBtn({ onClick, children, title }: { onClick:()=>void; children:React.R
     <button
       onClick={onClick} title={title}
       style={{width:20,height:20,borderRadius:'50%',border:'1px solid var(--border)',background:'none',
-              color:'var(--text-dim)',fontSize:14,display:'inline-flex',alignItems:'center',
+              color:'var(--text-dim)',fontSize:17,display:'inline-flex',alignItems:'center',
               justifyContent:'center',transition:'all 0.15s'}}
     >{children}</button>
   )
@@ -799,7 +859,7 @@ function Btn({ onClick, children, variant='default', style={} }:
   }
   return (
     <button onClick={onClick}
-      style={{padding:'8px 16px',borderRadius:6,fontFamily:'var(--display)',fontSize:12,fontWeight:600,
+      style={{padding:'8px 16px',borderRadius:6,fontFamily:'var(--display)',fontSize:15,fontWeight:600,
               letterSpacing:'0.06em',textTransform:'uppercase',...v[variant],...style}}
     >{children}</button>
   )
@@ -808,7 +868,7 @@ function Btn({ onClick, children, variant='default', style={} }:
 function CardSection({ title, children }: { title:string; children:React.ReactNode }) {
   return (
     <div style={{marginBottom:16}}>
-      <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:700,letterSpacing:'0.12em',
+      <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:700,letterSpacing:'0.12em',
                    textTransform:'uppercase',color:'var(--gold)',marginBottom:10,paddingBottom:6,
                    borderBottom:'1px solid rgba(212,172,13,0.3)'}}>{title}</div>
       {children}
@@ -820,7 +880,7 @@ function GmCard({ title, children, col=1 }: { title:string; children:React.React
   return (
     <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,
                  padding:16,gridColumn:`span ${col}`}}>
-      <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:700,letterSpacing:'0.12em',
+      <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:700,letterSpacing:'0.12em',
                    textTransform:'uppercase',color:'var(--gold)',marginBottom:14,paddingBottom:8,
                    borderBottom:'1px solid rgba(212,172,13,0.3)'}}>{title}</div>
       {children}
@@ -842,17 +902,17 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
     <div style={{background:'var(--panel)',border:`2px solid ${typeColor}`,borderRadius:8,overflow:'hidden',marginBottom:12}}>
       <div style={{background:typeColor,padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
         <div>
-          <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:15,color:'#fff'}}>{npc.name}</div>
-          <div style={{fontSize:10,color:'rgba(255,255,255,0.75)',fontFamily:'var(--mono)',letterSpacing:'0.08em'}}>{npc.species} · {npc.career}</div>
+          <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:18,color:'#fff'}}>{npc.name}</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'var(--mono)',letterSpacing:'0.08em'}}>{npc.species} · {npc.career}</div>
         </div>
-        <div style={{background:'rgba(255,255,255,0.18)',borderRadius:4,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0}}>{npc.type}</div>
+        <div style={{background:'rgba(255,255,255,0.18)',borderRadius:4,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}}>{npc.type}</div>
       </div>
       {/* Characteristics */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:1,background:'var(--border)'}}>
         {charLabels.map((c,i)=>(
           <div key={c} style={{background:typeBg,padding:'5px 2px',textAlign:'center'}}>
-            <div style={{fontSize:8,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{c.slice(0,3)}</div>
-            <div style={{fontSize:20,fontWeight:700,fontFamily:'var(--display)',color:typeColor,lineHeight:1.1}}>{charVals[i]}</div>
+            <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{c.slice(0,3)}</div>
+            <div style={{fontSize:23,fontWeight:700,fontFamily:'var(--display)',color:typeColor,lineHeight:1.1}}>{charVals[i]}</div>
           </div>
         ))}
       </div>
@@ -866,17 +926,17 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
           ...(npc.adversary?[{l:'Adv',v:npc.adversary}]:[]),
         ].map(s=>(
           <div key={s.l} style={{textAlign:'center',minWidth:32}}>
-            <div style={{fontSize:8,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase'}}>{s.l}</div>
-            <div style={{fontSize:15,fontWeight:700,color:'var(--text-bright)',fontFamily:'var(--display)'}}>{s.v}</div>
+            <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase'}}>{s.l}</div>
+            <div style={{fontSize:18,fontWeight:700,color:'var(--text-bright)',fontFamily:'var(--display)'}}>{s.v}</div>
           </div>
         ))}
       </div>
       {/* Skills */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Skills</div>
+        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Skills</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
           {npc.skills.map(s=>(
-            <span key={s.name} style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'1px 5px',color:'var(--text-dim)'}}>
+            <span key={s.name} style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'1px 5px',color:'var(--text-dim)'}}>
               {s.name} {s.rank}
             </span>
           ))}
@@ -884,9 +944,9 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       </div>
       {/* Weapons */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Weapons</div>
+        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Weapons</div>
         {npc.weapons.map(w=>(
-          <div key={w.name} style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+          <div key={w.name} style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
             <span style={{color:'var(--text-bright)'}}>{w.name}</span>
             {' — '}Dmg {w.damage} | Crit {w.critical} | {w.range}{w.qualities?` | ${w.qualities}`:''}
           </div>
@@ -895,9 +955,9 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       {/* Talents */}
       {npc.talents.length>0 && (
         <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Talents & Special Abilities</div>
+          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Talents & Special Abilities</div>
           {[...npc.talents.map(t=>({name:t.name,desc:t.desc})),...npc.abilities.map(a=>({name:'',desc:a}))].map((t,i)=>(
-            <div key={i} style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+            <div key={i} style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
               {t.name&&<span style={{color:'var(--text-bright)'}}>{t.name}: </span>}{t.desc}
             </div>
           ))}
@@ -905,18 +965,18 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       )}
       {/* Equipment */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>Equipment</div>
-        <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.4}}>{npc.equipment}</div>
+        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>Equipment</div>
+        <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.4}}>{npc.equipment}</div>
       </div>
       {/* Description */}
       <div style={{padding:'7px 12px',borderBottom:isGm?'1px solid var(--border)':'none'}}>
-        <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.55}}>{npc.desc}</div>
+        <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.55}}>{npc.desc}</div>
       </div>
       {/* GM Hook */}
       {isGm && (
         <div style={{padding:'7px 12px',background:'rgba(212,172,13,0.07)',borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-          <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{npc.hook}</div>
+          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+          <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{npc.hook}</div>
         </div>
       )}
     </div>
@@ -937,9 +997,9 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
     return (
       <div style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.88)',display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>
         <div style={{background:'var(--bg2)',border:`1px solid ${typeColor}`,borderRadius:8,padding:24,maxWidth:480,width:'92%'}} onClick={e=>e.stopPropagation()}>
-          <div style={{fontFamily:'var(--display)',fontSize:18,color:typeColor,marginBottom:8}}>{loc.name}</div>
-          <div style={{color:'var(--text-dim)',fontSize:12,lineHeight:1.6,marginBottom:16}}>{loc.desc}</div>
-          <button onClick={onClose} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,padding:'4px 16px',color:'var(--text-dim)',cursor:'pointer',fontFamily:'var(--display)',fontSize:12,fontWeight:600}}>Close</button>
+          <div style={{fontFamily:'var(--display)',fontSize:21,color:typeColor,marginBottom:8}}>{loc.name}</div>
+          <div style={{color:'var(--text-dim)',fontSize:15,lineHeight:1.6,marginBottom:16}}>{loc.desc}</div>
+          <button onClick={onClose} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,padding:'4px 16px',color:'var(--text-dim)',cursor:'pointer',fontFamily:'var(--display)',fontSize:15,fontWeight:600}}>Close</button>
         </div>
       </div>
     )
@@ -949,8 +1009,8 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
     {id:'overview',label:'Overview'},
     ...(data.poi.length         ? [{id:'poi',   label:'Points of Interest'}] : []),
     ...(data.shops.length       ? [{id:'shops', label:'Shops & Services'}]   : []),
-    ...(data.npcs.length        ? [{id:'npcs',  label:'People'}]             : []),
-    ...(data.quests.length      ? [{id:'quests',label:'Missions'}]           : []),
+    ...(isGm && data.npcs.length   ? [{id:'npcs',  label:'People'}]    : []),
+    ...(isGm && data.quests.length ? [{id:'quests',label:'Missions'}]  : []),
     ...(isGm && data.dmNotes    ? [{id:'dm',    label:'⚙ DM Notes'}]         : []),
   ]
 
@@ -960,21 +1020,21 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
         {/* Header */}
         <div style={{borderBottom:`2px solid ${typeColor}`,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
           <div style={{flex:1}}>
-            <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:20,color:typeColor,letterSpacing:'0.05em'}}>{loc.name}</div>
-            <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:2}}>
+            <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:23,color:typeColor,letterSpacing:'0.05em'}}>{loc.name}</div>
+            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:2}}>
               {TYPE_META[loc.type]?.label}
               {loc.ly   ? `  ·  ${loc.ly} ly from base` : ''}
               {loc.threat ? `  ·  ${loc.threat}` : ''}
             </div>
           </div>
-          <button onClick={onClose} style={{background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',fontSize:18,lineHeight:1,cursor:'pointer',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>×</button>
+          <button onClick={onClose} style={{background:'none',border:'1px solid var(--border)',borderRadius:4,color:'var(--text-dim)',fontSize:21,lineHeight:1,cursor:'pointer',width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>×</button>
         </div>
         {/* Tabs */}
         <div style={{display:'flex',borderBottom:'1px solid var(--border)',flexShrink:0,overflowX:'auto'}}>
           {tabs.map(t=>(
             <button key={t.id} onClick={()=>setActiveTab(t.id)}
               style={{padding:'9px 15px',border:'none',background:'none',cursor:'pointer',
-                     fontFamily:'var(--display)',fontSize:12,fontWeight:600,letterSpacing:'0.06em',
+                     fontFamily:'var(--display)',fontSize:15,fontWeight:600,letterSpacing:'0.06em',
                      color:activeTab===t.id?typeColor:'var(--text-dim)',
                      borderBottom:activeTab===t.id?`2px solid ${typeColor}`:'2px solid transparent',
                      whiteSpace:'nowrap',transition:'color 0.15s'}}>
@@ -986,10 +1046,10 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
         <div style={{flex:1,overflowY:'auto',padding:18}}>
           {activeTab==='overview' && (
             <div>
-              <p style={{fontSize:13,color:'var(--text-bright)',lineHeight:1.75,marginBottom:14}}>{data.overview}</p>
+              <p style={{fontSize:16,color:'var(--text-bright)',lineHeight:1.75,marginBottom:14}}>{data.overview}</p>
               <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',borderRadius:6,padding:12}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:5,textTransform:'uppercase',letterSpacing:'0.08em'}}>Atmosphere</div>
-                <p style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.65,fontStyle:'italic',margin:0}}>{data.atmosphere}</p>
+                <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:5,textTransform:'uppercase',letterSpacing:'0.08em'}}>Atmosphere</div>
+                <p style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.65,fontStyle:'italic',margin:0}}>{data.atmosphere}</p>
               </div>
             </div>
           )}
@@ -997,8 +1057,8 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
             <div>
               {data.poi.map(p=>(
                 <div key={p.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
-                  <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor,marginBottom:4}}>{p.name}</div>
-                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{p.desc}</div>
+                  <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor,marginBottom:4}}>{p.name}</div>
+                  <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55}}>{p.desc}</div>
                 </div>
               ))}
             </div>
@@ -1008,14 +1068,14 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
               {data.shops.map(s=>(
                 <div key={s.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
-                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor}}>{s.name}</div>
-                    <span style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{s.type}</span>
+                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor}}>{s.name}</div>
+                    <span style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{s.type}</span>
                   </div>
-                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55,marginBottom:s.inventory?8:0}}>{s.desc}</div>
+                  <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55,marginBottom:s.inventory?8:0}}>{s.desc}</div>
                   {s.inventory && (
                     <div style={{background:'rgba(0,0,0,0.25)',borderRadius:4,padding:'6px 10px'}}>
-                      <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Sample Inventory</div>
-                      <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.6}}>{s.inventory}</div>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Sample Inventory</div>
+                      <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.6}}>{s.inventory}</div>
                     </div>
                   )}
                 </div>
@@ -1030,13 +1090,13 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
                     <StatBlock npcKey={n.key} isGm={isGm} />
                   ) : (
                     <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:12}}>
-                      <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor,marginBottom:2}}>{n.name}</div>
-                      <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{n.role}</div>
-                      <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{n.desc}</div>
+                      <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor,marginBottom:2}}>{n.name}</div>
+                      <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{n.role}</div>
+                      <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55}}>{n.desc}</div>
                       {isGm && n.hook && (
                         <div style={{marginTop:8,padding:'6px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-                          <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-                          <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.5}}>{n.hook}</div>
+                          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                          <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.5}}>{n.hook}</div>
                         </div>
                       )}
                     </div>
@@ -1050,15 +1110,15 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
               {data.quests.map(q=>(
                 <div key={q.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:5}}>
-                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,color:typeColor}}>{q.name}</div>
-                    <span style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{q.type}</span>
+                    <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor}}>{q.name}</div>
+                    <span style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{q.type}</span>
                   </div>
-                  <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6}}>Difficulty: {q.difficulty} · Reward: {q.reward}</div>
-                  <div style={{fontSize:12,color:'var(--text-dim)',lineHeight:1.55}}>{q.desc}</div>
+                  <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6}}>Difficulty: {q.difficulty} · Reward: {q.reward}</div>
+                  <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55}}>{q.desc}</div>
                   {isGm && (
                     <div style={{marginTop:8,padding:'7px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-                      <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-                      <div style={{fontSize:10,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{q.gmHook}</div>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                      <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{q.gmHook}</div>
                     </div>
                   )}
                 </div>
@@ -1067,8 +1127,8 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
           )}
           {activeTab==='dm' && isGm && data.dmNotes && (
             <div style={{background:'rgba(212,172,13,0.07)',border:'1px solid rgba(212,172,13,0.3)',borderRadius:6,padding:16}}>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>DM Notes — {loc.name}</div>
-              <div style={{fontSize:12,color:'rgba(212,172,13,0.88)',lineHeight:1.75}}>{data.dmNotes}</div>
+              <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>DM Notes — {loc.name}</div>
+              <div style={{fontSize:15,color:'rgba(212,172,13,0.88)',lineHeight:1.75}}>{data.dmNotes}</div>
             </div>
           )}
         </div>
@@ -1083,40 +1143,87 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
 function AdversariesView() {
   const [search,     setSearch]     = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
+  const [selectedKey, setSelectedKey] = useState<string|null>(null)
+
   const filtered = Object.entries(NPC_STATS).filter(([,npc]) => {
     const matchSearch = !search || npc.name.toLowerCase().includes(search.toLowerCase()) || npc.career.toLowerCase().includes(search.toLowerCase())
     const matchType   = typeFilter==='ALL' || npc.type===typeFilter
     return matchSearch && matchType
   })
+
+  const typeColor = (t:string) => t==='NEMESIS'?'#7b1fa2':t==='RIVAL'?'#1565c0':t==='ALLY'?'#2e7d32':'#5d4037'
+
   return (
-    <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-      <div style={{padding:'12px 18px',borderBottom:'1px solid var(--border)',display:'flex',gap:10,alignItems:'center',flexShrink:0,flexWrap:'wrap'}}>
-        <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:14,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Adversaries Dossier</div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or career…"
-          style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,padding:'4px 10px',
-                  color:'var(--text-bright)',fontFamily:'var(--mono)',fontSize:12,flex:1,minWidth:140,maxWidth:280}}/>
-        <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
-          {(['ALL','NEMESIS','RIVAL','ALLY','MINION'] as const).map(t=>(
-            <button key={t} onClick={()=>setTypeFilter(t)}
-              style={{padding:'3px 9px',borderRadius:4,cursor:'pointer',fontFamily:'var(--mono)',fontSize:10,fontWeight:700,
-                     border:`1px solid ${typeFilter===t?'rgba(212,172,13,0.5)':'var(--border)'}`,
-                     background:typeFilter===t?'rgba(212,172,13,0.1)':'var(--panel)',
-                     color:typeFilter===t?'var(--gold)':'var(--text-dim)'}}>
-              {t}
-            </button>
+    <div style={{height:'100%',display:'flex',overflow:'hidden'}}>
+
+      {/* ── Left panel: search + list ── */}
+      <div style={{width:270,flexShrink:0,display:'flex',flexDirection:'column',
+                   borderRight:'1px solid var(--border)',background:'var(--bg2)'}}>
+        {/* Header */}
+        <div style={{padding:'12px 14px',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+          <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:17,
+                       letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)',marginBottom:8}}>
+            Adversaries
+          </div>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"
+            style={{width:'100%',background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
+                    padding:'5px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,
+                    outline:'none',boxSizing:'border-box'}}/>
+          <div style={{display:'flex',gap:3,flexWrap:'wrap',marginTop:8}}>
+            {(['ALL','NEMESIS','RIVAL','ALLY','MINION'] as const).map(t=>(
+              <button key={t} onClick={()=>setTypeFilter(t)}
+                style={{padding:'2px 7px',borderRadius:4,cursor:'pointer',fontFamily:'var(--mono)',fontSize:12,fontWeight:700,
+                       border:`1px solid ${typeFilter===t?'rgba(212,172,13,0.5)':'var(--border)'}`,
+                       background:typeFilter===t?'rgba(212,172,13,0.1)':'var(--panel)',
+                       color:typeFilter===t?'var(--gold)':'var(--text-dim)'}}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* Name list */}
+        <div style={{flex:1,overflowY:'auto'}}>
+          {filtered.length===0 && (
+            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,textAlign:'center',paddingTop:32}}>
+              No matches
+            </div>
+          )}
+          {filtered.map(([key,npc])=>(
+            <div key={key} onClick={()=>setSelectedKey(key===selectedKey?null:key)}
+              style={{padding:'9px 14px',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,0.04)',
+                      background:selectedKey===key?'rgba(212,172,13,0.08)':'transparent',
+                      borderLeft:`3px solid ${selectedKey===key?typeColor(npc.type):'transparent'}`,
+                      transition:'all 0.15s'}}>
+              <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:15,
+                           color:selectedKey===key?'var(--text-bright)':'var(--text)',marginBottom:2}}>
+                {npc.name}
+              </div>
+              <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                <span style={{fontFamily:'var(--mono)',fontSize:11,fontWeight:700,
+                              color:typeColor(npc.type),letterSpacing:'0.06em'}}>{npc.type}</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>·</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>{npc.species}</span>
+              </div>
+            </div>
           ))}
         </div>
       </div>
-      <div style={{flex:1,overflowY:'auto',padding:14,display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))',gap:10,alignContent:'start'}}>
-        {filtered.map(([key])=>(
-          <StatBlock key={key} npcKey={key} isGm={true} />
-        ))}
-        {filtered.length===0 && (
-          <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:12,gridColumn:'1/-1',textAlign:'center',paddingTop:40}}>
-            No adversaries match your search.
+
+      {/* ── Right panel: stat block detail ── */}
+      <div style={{flex:1,overflowY:'auto',padding:20,background:'var(--bg)'}}>
+        {selectedKey ? (
+          <StatBlock npcKey={selectedKey} isGm={true}/>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                       height:'100%',gap:12,color:'var(--text-dim)'}}>
+            <div style={{fontSize:36,opacity:0.3}}>⚔</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:14,textAlign:'center'}}>
+              Select an adversary from the list to view their stat block.
+            </div>
           </div>
         )}
       </div>
+
     </div>
   )
 }
@@ -1181,7 +1288,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
         const dist=Math.round(Math.sqrt(dx*dx+dy*dy)*0.32)
         if (dist>0) {
           const mx=(sa.x+sb.x)/2, my=(sa.y+sb.y)/2
-          ctx.save(); ctx.font=`${Math.round(8*Math.min(zoom,1.4))}px Share Tech Mono`
+          ctx.save(); ctx.font=`${Math.round(11*Math.min(zoom,1.4))}px Share Tech Mono`
           ctx.fillStyle='rgba(72,100,158,0.8)'; ctx.textAlign='center'
           ctx.fillText(`${dist} ly`,mx,my-4); ctx.restore()
         }
@@ -1206,7 +1313,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
         ctx.save(); ctx.beginPath(); ctx.arc(s.x,s.y,r*0.7,0,Math.PI*2)
         ctx.strokeStyle='rgba(171,71,188,0.35)'; ctx.lineWidth=1; ctx.setLineDash([3,4]); ctx.stroke()
         if (zoom>0.75) {
-          ctx.font=`${Math.round(10*zoom)}px Share Tech Mono`
+          ctx.font=`${Math.round(13*zoom)}px Share Tech Mono`
           ctx.fillStyle='rgba(171,71,188,0.45)'; ctx.textAlign='center'
           ctx.fillText('?',s.x,s.y+4)
         }
@@ -1221,12 +1328,12 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
       ctx.fillStyle=T.color; ctx.fill()
       ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.5; ctx.stroke(); ctx.restore()
       if (zoom>0.55) {
-        const fz=Math.max(10,Math.round(11*Math.min(zoom,1.6)))
+        const fz=Math.max(13,Math.round(14*Math.min(zoom,1.6)))
         ctx.save(); ctx.font=`600 ${fz}px Exo 2`; ctx.textAlign='center'
         ctx.fillStyle=n.type==='home'?'#4fc3f7':n.type==='command'?'#00e5ff':'rgba(188,202,228,0.9)'
         ctx.fillText(n.name,s.x,s.y+r+13)
         if (zoom>0.85&&n.ly) {
-          ctx.font=`${Math.max(9,Math.round(9*zoom))}px Share Tech Mono`
+          ctx.font=`${Math.max(12,Math.round(12*zoom))}px Share Tech Mono`
           ctx.fillStyle='rgba(110,130,172,0.7)'
           ctx.fillText(`${n.ly} ly`,s.x,s.y+r+24)
         }
@@ -1238,7 +1345,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
     LOCATIONS.filter(n=>n.type==='hazard').forEach(n => {
       if (zoom>0.55) {
         const s=toScreen(n.x,n.y),r=50*zoom
-        ctx.save(); ctx.font=`${Math.max(10,Math.round(10*zoom))}px Exo 2`
+        ctx.save(); ctx.font=`${Math.max(13,Math.round(13*zoom))}px Exo 2`
         ctx.fillStyle='rgba(240,98,146,0.65)'; ctx.textAlign='center'
         ctx.fillText(n.name,s.x,s.y+r+13); ctx.restore()
       }
@@ -1363,7 +1470,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
           <button onClick={()=>setSidebarOpen(o=>!o)}
             style={{position:'absolute',bottom:16,right:16,width:44,height:44,borderRadius:'50%',
                     background:'var(--panel)',border:'1px solid var(--border2)',
-                    color:'var(--gold)',fontSize:18,display:'flex',alignItems:'center',
+                    color:'var(--gold)',fontSize:21,display:'flex',alignItems:'center',
                     justifyContent:'center',zIndex:10,boxShadow:'0 2px 12px rgba(0,0,0,0.6)'}}>
             ☰
           </button>
@@ -1381,42 +1488,42 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
         }}>
           <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
                        display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-            <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
+            <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,
                          letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>
               Navigation Data
             </div>
             {isMobile && (
               <button onClick={()=>setSidebarOpen(false)}
-                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:20,cursor:'pointer',lineHeight:1}}>
+                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:23,cursor:'pointer',lineHeight:1}}>
                 ×
               </button>
             )}
           </div>
           <div style={{flex:1,overflowY:'auto',padding:12}}>
             {!isMobile && (
-              <p style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
+              <p style={{fontSize:14,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
                 Click a node to select. Scroll to zoom. Drag to pan.
               </p>
             )}
             {selLoc && (
               <div style={{background:'rgba(212,172,13,0.06)',border:'1px solid rgba(212,172,13,0.4)',
                            borderRadius:6,padding:12,marginBottom:12}}>
-                <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,color:'var(--text-bright)',marginBottom:4}}>
+                <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',marginBottom:4}}>
                   {selLoc.name}
                 </div>
-                <div style={{fontSize:10,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                <div style={{fontSize:13,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
                              color:TYPE_META[selLoc.type]?.color,marginBottom:6}}>
                   {TYPE_META[selLoc.type]?.label}
                 </div>
-                <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
+                <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                   {selLoc.ly && (
-                    <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,255,255,0.06)',
+                    <span style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,255,255,0.06)',
                                   borderRadius:3,padding:'2px 6px',color:'var(--text-dim)'}}>
                       {selLoc.ly} ly
                     </span>
                   )}
-                  <span style={{fontFamily:'var(--mono)',fontSize:10,background:'rgba(255,100,100,0.08)',
+                  <span style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,100,100,0.08)',
                                 borderRadius:3,padding:'2px 6px',color:'rgba(255,120,120,0.8)'}}>
                     {selLoc.threat}
                   </span>
@@ -1425,14 +1532,14 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
                   <button onClick={()=>setModalLocId(selLoc.id)}
                     style={{marginTop:8,width:'100%',background:'rgba(212,172,13,0.1)',
                             border:'1px solid rgba(212,172,13,0.5)',borderRadius:4,padding:'7px',
-                            color:'var(--gold)',fontFamily:'var(--display)',fontSize:11,
+                            color:'var(--gold)',fontFamily:'var(--display)',fontSize:14,
                             fontWeight:700,letterSpacing:'0.08em',cursor:'pointer',transition:'background 0.15s'}}>
                     View Details
                   </button>
                 )}
               </div>
             )}
-            <div style={{fontSize:11,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
+            <div style={{fontSize:14,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
                          letterSpacing:'0.1em',textTransform:'uppercase',marginTop:8,marginBottom:8}}>
               All Locations
             </div>
@@ -1442,10 +1549,10 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
                 style={{background:selected===loc.id?'rgba(212,172,13,0.06)':'var(--panel)',
                         border:`1px solid ${selected===loc.id?'rgba(212,172,13,0.4)':'var(--border)'}`,
                         borderRadius:6,padding:'8px 10px',marginBottom:5,cursor:'pointer',transition:'all 0.2s'}}>
-                <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>
+                <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>
                   {loc.name}
                 </div>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                <div style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
                              color:TYPE_META[loc.type]?.color}}>
                   {TYPE_META[loc.type]?.label}
                   {loc.ly ? `  ·  ${loc.ly} ly` : ''}
@@ -1482,7 +1589,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
   const inp = (style?:any) => ({
     background:'none',border:'none',borderBottom:'1px solid var(--border)',
-    color:'var(--text)',fontFamily:'var(--body)',fontSize:12,padding:'2px 0',
+    color:'var(--text)',fontFamily:'var(--body)',fontSize:15,padding:'2px 0',
     outline:'none',minWidth:80,...style
   })
 
@@ -1495,24 +1602,24 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                      padding:20,background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8}}>
           <div style={{width:72,height:72,borderRadius:'50%',display:'flex',alignItems:'center',
                        justifyContent:'center',background:`${color}22`,border:`2px solid ${color}`,flexShrink:0}}>
-            <span style={{fontFamily:'var(--display)',fontSize:32,fontWeight:700,color}}>{initials}</span>
+            <span style={{fontFamily:'var(--display)',fontSize:35,fontWeight:700,color}}>{initials}</span>
           </div>
           <div style={{flex:1}}>
             <input value={char.name||''} onChange={e=>update('name',e.target.value)} placeholder="Character Name"
-              style={{fontFamily:'var(--display)',fontSize:24,fontWeight:700,color:'var(--text-bright)',
+              style={{fontFamily:'var(--display)',fontSize:27,fontWeight:700,color:'var(--text-bright)',
                       background:'none',border:'none',borderBottom:'1px solid var(--border2)',
                       width:'100%',marginBottom:8,padding:'2px 0',outline:'none'}}/>
             <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
               {[['player','Player'],['species','Species'],['career','Career'],['specialisation','Specialisation']].map(([k,l])=>(
                 <div key={k} style={{display:'flex',flexDirection:'column',gap:2}}>
-                  <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                  <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                                textTransform:'uppercase',letterSpacing:'0.1em'}}>{l}</div>
                   <input value={char[k]||''} onChange={e=>update(k,e.target.value)} placeholder="—"
                     style={inp({minWidth:90})}/>
                 </div>
               ))}
               <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.1em'}}>Colour</div>
                 <div style={{display:'flex',gap:5,marginTop:4}}>
                   {CHAR_COLORS.map((c,i)=>(
@@ -1526,17 +1633,17 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',flexShrink:0}}>
             <div>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>XP SPENT</div>
+              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>XP SPENT</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--gold)'}}>{char.xp||0}</div>
+                <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.xp||0}</div>
                 <SBtn onClick={()=>update('xp',(char.xp||0)+5)}>+</SBtn>
                 <SBtn onClick={()=>update('xp',Math.max(0,(char.xp||0)-5))}>−</SBtn>
               </div>
             </div>
             <div>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY</div>
+              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--gold)'}}>{char.duty||0}</div>
+                <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.duty||0}</div>
                 <SBtn onClick={()=>update('duty',(char.duty||0)+1)}>+</SBtn>
                 <SBtn onClick={()=>update('duty',Math.max(0,(char.duty||0)-1))}>−</SBtn>
               </div>
@@ -1550,9 +1657,9 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             {CHAR_KEYS.map(k=>(
               <div key={k} style={{background:'var(--panel)',border:'1px solid var(--border)',
                                    borderRadius:6,padding:'10px 8px',textAlign:'center'}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{k}</div>
-                <div style={{fontFamily:'var(--display)',fontSize:28,fontWeight:700,
+                <div style={{fontFamily:'var(--display)',fontSize:31,fontWeight:700,
                              color:'var(--text-bright)',lineHeight:1}}>
                   {char.characteristics?.[k]||1}
                 </div>
@@ -1571,9 +1678,9 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             {([['Wounds','wounds',derivedWT,'var(--red)'],
                ['Strain','strain',derivedST,'#E67E22']] as [string,string,number,string][]).map(([lbl,field,max,col])=>(
               <div key={field} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>{lbl}</div>
-                <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--text-bright)'}}>
+                <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>
                   {char[field]||0} / {max}
                 </div>
                 <div style={{display:'flex',gap:3,flexWrap:'wrap',marginTop:6}}>
@@ -1588,15 +1695,15 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </div>
             ))}
             <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                            textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Soak</div>
-              <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--text-bright)'}}>{derivedSoak}</div>
-              <div style={{fontSize:10,color:'var(--text-dim)',marginTop:4}}>Brawn + armour</div>
+              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{derivedSoak}</div>
+              <div style={{fontSize:13,color:'var(--text-dim)',marginTop:4}}>Brawn + armour</div>
             </div>
             <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',
+              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
                            textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence</div>
-              <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--text-bright)'}}>{char.defense||0}</div>
+              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defense||0}</div>
               <div style={{display:'flex',gap:4,marginTop:6}}>
                 <SBtn onClick={()=>update('defense',Math.max(0,(char.defense||0)-1))}>−</SBtn>
                 <SBtn onClick={()=>update('defense',(char.defense||0)+1)}>+</SBtn>
@@ -1626,32 +1733,32 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                       update(`skills.${skill}`, next===defaultAbbr ? rank : {rank, char:next})
                     }}
                     title={`Linked to ${abbr} — click to change`}
-                    style={{fontSize:10,fontFamily:'var(--mono)',width:30,textAlign:'center',
+                    style={{fontSize:13,fontFamily:'var(--mono)',width:30,textAlign:'center',
                             cursor:'pointer',borderRadius:3,padding:'1px 2px',userSelect:'none',
                             color:isCustom?'var(--gold)':'var(--text-dim)',
                             background:isCustom?'rgba(212,172,13,0.1)':'transparent',
                             border:isCustom?'1px solid rgba(212,172,13,0.35)':'1px solid transparent'}}>
                     {abbr}
                   </div>
-                  <div style={{flex:1,fontSize:12,color:'var(--text)'}}>{skill}</div>
+                  <div style={{flex:1,fontSize:15,color:'var(--text)'}}>{skill}</div>
                   <div style={{display:'flex',gap:3}}>
                     {Array.from({length:prof}).map((_,i)=>(
                       <div key={`p${i}`} style={{width:14,height:14,borderRadius:3,background:'#FFD700',
                                                   color:'#332200',display:'flex',alignItems:'center',
-                                                  justifyContent:'center',fontSize:9,fontWeight:700}}>Y</div>
+                                                  justifyContent:'center',fontSize:12,fontWeight:700}}>Y</div>
                     ))}
                     {Array.from({length:abil}).map((_,i)=>(
                       <div key={`a${i}`} style={{width:14,height:14,borderRadius:3,background:'#4CAF50',
                                                   color:'#002200',display:'flex',alignItems:'center',
-                                                  justifyContent:'center',fontSize:9,fontWeight:700}}>G</div>
+                                                  justifyContent:'center',fontSize:12,fontWeight:700}}>G</div>
                     ))}
                     {rank===0&&<div style={{width:14,height:14,borderRadius:3,background:'rgba(255,255,255,0.08)',
                                             color:'var(--text-dim)',display:'flex',alignItems:'center',
-                                            justifyContent:'center',fontSize:9}}>—</div>}
+                                            justifyContent:'center',fontSize:12}}>—</div>}
                   </div>
                   <div style={{display:'flex',gap:2,alignItems:'center'}}>
                     <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.max(0,rank-1)}:Math.max(0,rank-1))}>−</SBtn>
-                    <span style={{fontFamily:'var(--mono)',fontSize:11,width:14,textAlign:'center',color:'var(--text)'}}>{rank}</span>
+                    <span style={{fontFamily:'var(--mono)',fontSize:14,width:14,textAlign:'center',color:'var(--text)'}}>{rank}</span>
                     <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.min(5,rank+1)}:Math.min(5,rank+1))}>+</SBtn>
                   </div>
                 </div>
@@ -1666,23 +1773,23 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             <div key={i} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
                                   padding:10,display:'flex',gap:10,alignItems:'flex-start',marginBottom:6}}>
               <div style={{flex:1}}>
-                <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>{t.name}</div>
-                <div style={{fontSize:11,color:'var(--text-dim)',lineHeight:1.5}}>{t.desc}</div>
+                <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>{t.name}</div>
+                <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.5}}>{t.desc}</div>
               </div>
               <button onClick={()=>update('talents',(char.talents||[]).filter((_:any,j:number)=>j!==i))}
-                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:16,cursor:'pointer'}}>×</button>
+                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
             </div>
           ))}
           <div style={{display:'flex',flexDirection:'column',gap:6,marginTop:8}}>
             <input value={newTalent.name} onChange={e=>setNewTalent(t=>({...t,name:e.target.value}))}
               placeholder="Talent name"
               style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
-                      padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none'}}/>
+                      padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
             <div style={{display:'flex',gap:8}}>
               <input value={newTalent.desc} onChange={e=>setNewTalent(t=>({...t,desc:e.target.value}))}
                 placeholder="Description"
                 style={{flex:1,background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
-                        padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none'}}/>
+                        padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
               <Btn variant="primary" onClick={()=>{
                 if(!newTalent.name.trim()) return
                 update('talents',[...(char.talents||[]),newTalent])
@@ -1698,7 +1805,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:480}}>
             <thead>
               <tr>{['Name','Skill','Dam','Crit','Range','Qualities',''].map(h=>(
-                <th key={h} style={{fontFamily:'var(--mono)',fontSize:9,textTransform:'uppercase',
+                <th key={h} style={{fontFamily:'var(--mono)',fontSize:12,textTransform:'uppercase',
                                     letterSpacing:'0.08em',color:'var(--text-dim)',padding:'5px 7px',
                                     textAlign:'left',borderBottom:'1px solid var(--border)'}}>{h}</th>
               ))}</tr>
@@ -1707,15 +1814,15 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               {(char.weapons||[]).map((w:any,i:number)=>(
                 <tr key={i}>
                   {(['name','skill','dam','crit','range','qualities'] as const).map(f=>(
-                    <td key={f} style={{padding:'6px 7px',fontSize:12,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                    <td key={f} style={{padding:'6px 7px',fontSize:15,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
                       <input value={w[f]||''} onChange={e=>{
                         const ws=[...char.weapons]; ws[i]={...ws[i],[f]:e.target.value}; update('weapons',ws)
-                      }} style={{background:'none',border:'none',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none',width:'100%'}}/>
+                      }} style={{background:'none',border:'none',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
                     </td>
                   ))}
                   <td>
                     <button onClick={()=>update('weapons',(char.weapons||[]).filter((_:any,j:number)=>j!==i))}
-                      style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:16,cursor:'pointer'}}>×</button>
+                      style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
                   </td>
                 </tr>
               ))}
@@ -1725,7 +1832,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                     <input value={(newWeapon as any)[f]||''} onChange={e=>setNewWeapon(w=>({...w,[f]:e.target.value}))}
                       placeholder={f}
                       style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
-                              padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,
+                              padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,
                               outline:'none',width:'100%'}}/>
                   </td>
                 ))}
@@ -1746,7 +1853,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
         <CardSection title="Notes & Backstory">
           <textarea value={char.notes||''} onChange={e=>update('notes',e.target.value)} rows={5}
             style={{width:'100%',background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
-                    padding:10,color:'var(--text)',fontFamily:'var(--body)',fontSize:12,
+                    padding:10,color:'var(--text)',fontFamily:'var(--body)',fontSize:15,
                     resize:'vertical',outline:'none',lineHeight:1.6}}
             placeholder="Character notes, backstory, contacts..."/>
         </CardSection>
@@ -1813,17 +1920,17 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
         : {width:260,flexShrink:0,background:'var(--bg2)',borderRight:'1px solid var(--border)',display:'flex',flexDirection:'column'}}>
         <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
                      display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
+          <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,
                        letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Characters</div>
           <button onClick={addChar}
             style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
-                    background:'var(--panel)',color:'var(--text-dim)',fontSize:18,cursor:'pointer',
+                    background:'var(--panel)',color:'var(--text-dim)',fontSize:21,cursor:'pointer',
                     display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:8}}>
-          {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>Loading...</div>}
+          {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:14,fontFamily:'var(--mono)'}}>Loading...</div>}
           {!loading&&chars.length===0 && (
-            <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:11,fontFamily:'var(--mono)'}}>
+            <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:14,fontFamily:'var(--mono)'}}>
               {`No characters yet.`}<br/>{`Click + to create one.`}
             </div>
           )}
@@ -1839,16 +1946,16 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
                         border:activeId===c.id?'1px solid rgba(212,172,13,0.3)':'1px solid transparent'}}>
                 <div style={{width:36,height:36,borderRadius:'50%',display:'flex',alignItems:'center',
                              justifyContent:'center',background:`${col}22`,color:col,
-                             fontFamily:'var(--display)',fontSize:16,fontWeight:700,flexShrink:0}}>
+                             fontFamily:'var(--display)',fontSize:19,fontWeight:700,flexShrink:0}}>
                   {ini}
                 </div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:600,color:'var(--text-bright)'}}>{c.name}</div>
-                  <div style={{fontSize:10,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
+                  <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:600,color:'var(--text-bright)'}}>{c.name}</div>
+                  <div style={{fontSize:13,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
                 </div>
                 {canDelete && (
                   <button onClick={e=>{e.stopPropagation();deleteChar(c.id)}}
-                    style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:14,cursor:'pointer'}}>×</button>
+                    style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:17,cursor:'pointer'}}>×</button>
                 )}
               </div>
             )
@@ -1856,7 +1963,7 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
         </div>
         {saving && (
           <div style={{padding:'8px 12px',borderTop:'1px solid var(--border)',
-                       fontSize:10,color:'var(--gold)',fontFamily:'var(--mono)',textAlign:'center'}}>
+                       fontSize:13,color:'var(--gold)',fontFamily:'var(--mono)',textAlign:'center'}}>
             Saving to database…
           </div>
         )}
@@ -1870,10 +1977,10 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
                              background:'var(--bg2)',display:'flex',alignItems:'center',gap:10}}>
                   <button onClick={()=>setActiveId(null)}
                     style={{background:'none',border:'none',color:'var(--gold)',fontFamily:'var(--display)',
-                            fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+                            fontSize:16,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
                     ← Back
                   </button>
-                  <span style={{fontFamily:'var(--display)',fontSize:13,fontWeight:600,color:'var(--text-bright)'}}>
+                  <span style={{fontFamily:'var(--display)',fontSize:16,fontWeight:600,color:'var(--text-bright)'}}>
                     {activeChar.name}
                   </span>
                 </div>
@@ -1883,8 +1990,8 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
           : (
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',
                          justifyContent:'center',gap:12,color:'var(--text-dim)',background:'var(--bg)'}}>
-              <div style={{fontSize:48,opacity:0.3}}>◈</div>
-              <div style={{fontFamily:'var(--display)',fontSize:16,letterSpacing:'0.08em'}}>
+              <div style={{fontSize:51,opacity:0.3}}>◈</div>
+              <div style={{fontFamily:'var(--display)',fontSize:19,letterSpacing:'0.08em'}}>
                 Select or create a character
               </div>
               <Btn variant="primary" onClick={addChar}>{'Create Character'}</Btn>
@@ -1971,7 +2078,7 @@ function InitiativeTracker() {
       {/* Main combat area */}
       <div style={{padding:20,overflowY:'auto',display:'flex',flexDirection:'column',gap:14}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:700,color:'var(--text-bright)',letterSpacing:'0.06em'}}>
+          <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--text-bright)',letterSpacing:'0.06em'}}>
             Initiative Order
           </div>
           <div style={{display:'flex',gap:8}}>
@@ -1984,25 +2091,25 @@ function InitiativeTracker() {
         <div style={{display:'flex',alignItems:'center',gap:16,padding:'12px 16px',
                      background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8}}>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Round</div>
-            <div style={{fontFamily:'var(--display)',fontSize:36,fontWeight:700,color:'var(--gold)',lineHeight:1}}>{data.round}</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Round</div>
+            <div style={{fontFamily:'var(--display)',fontSize:39,fontWeight:700,color:'var(--gold)',lineHeight:1}}>{data.round}</div>
           </div>
           <div style={{width:1,background:'var(--border)',alignSelf:'stretch'}}/>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Active</div>
-            <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)'}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Active</div>
+            <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:600,color:'var(--text-bright)'}}>
               {data.slots[data.currentIdx]?.name||'—'}
             </div>
           </div>
           <div style={{width:1,background:'var(--border)',alignSelf:'stretch'}}/>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Combatants</div>
-            <div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:700,color:'var(--text-bright)'}}>{data.slots.length}</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Combatants</div>
+            <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--text-bright)'}}>{data.slots.length}</div>
           </div>
         </div>
 
         {data.slots.length===0 && (
-          <div style={{textAlign:'center',padding:'40px',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:12}}>
+          <div style={{textAlign:'center',padding:'40px',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:15}}>
             No combatants. Add them from the right panel.
           </div>
         )}
@@ -2018,21 +2125,21 @@ function InitiativeTracker() {
                                        boxShadow:cur?`0 0 12px ${accent}1A`:'none',
                                        position:'relative',overflow:'hidden'}}>
               <div style={{position:'absolute',left:0,top:0,bottom:0,width:3,background:accent}}/>
-              <div style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,
+              <div style={{fontFamily:'var(--mono)',fontSize:19,fontWeight:700,
                            color:cur?accent:'var(--text-dim)',minWidth:26}}>{idx+1}</div>
-              <span style={{padding:'2px 7px',borderRadius:3,fontSize:9,fontFamily:'var(--mono)',
+              <span style={{padding:'2px 7px',borderRadius:3,fontSize:12,fontFamily:'var(--mono)',
                             textTransform:'uppercase',letterSpacing:'0.1em',
                             background:`${accent}33`,color:accent}}>{slot.type.toUpperCase()}</span>
-              <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,color:'var(--text-bright)',flex:1}}>{slot.name}</div>
+              <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',flex:1}}>{slot.name}</div>
               {/* Wound pips */}
               <div style={{display:'flex',alignItems:'center',gap:3}}>
-                <span style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>W</span>
+                <span style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>W</span>
                 {Array.from({length:Math.min(slot.wt,15)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'wounds',i<(slot.wounds||0)?-1:1)}
                     style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
                             background:i<(slot.wounds||0)?'var(--red)':'transparent'}}/>
                 ))}
-                <span style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',marginLeft:5}}>S</span>
+                <span style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginLeft:5}}>S</span>
                 {Array.from({length:Math.min(slot.st,12)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'strain',i<(slot.strain||0)?-1:1)}
                     style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
@@ -2041,7 +2148,7 @@ function InitiativeTracker() {
               </div>
               {(slot.crits||[]).length>0 && (
                 <span style={{padding:'2px 6px',background:'rgba(192,57,43,0.3)',border:'1px solid var(--red)',
-                              borderRadius:3,fontSize:9,fontFamily:'var(--mono)',color:'var(--red)'}}>
+                              borderRadius:3,fontSize:12,fontFamily:'var(--mono)',color:'var(--red)'}}>
                   CRIT ×{slot.crits.length}
                 </span>
               )}
@@ -2049,11 +2156,11 @@ function InitiativeTracker() {
                 <button onClick={()=>addCrit(slot)} title="Add Critical"
                   style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
                           background:'rgba(255,255,255,0.04)',color:'var(--text-dim)',cursor:'pointer',
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>⚡</button>
+                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⚡</button>
                 <button onClick={()=>act({action:'remove_slot',id:slot.id})}
                   style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
                           background:'rgba(255,255,255,0.04)',color:'var(--red)',cursor:'pointer',
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>×</button>
+                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>×</button>
               </div>
             </div>
           )
@@ -2064,7 +2171,7 @@ function InitiativeTracker() {
       <div style={{background:'var(--bg2)',borderLeft:'1px solid var(--border)',
                    display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
-                     fontFamily:'var(--display)',fontSize:13,fontWeight:700,
+                     fontFamily:'var(--display)',fontSize:16,fontWeight:700,
                      letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>
           Combat Tools
         </div>
@@ -2072,7 +2179,7 @@ function InitiativeTracker() {
 
           {/* Add combatant */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:14,display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{fontFamily:'var(--display)',fontSize:11,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-dim)'}}>
+            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-dim)'}}>
               Add Combatant
             </div>
             <div style={{display:'flex',gap:4}}>
@@ -2084,7 +2191,7 @@ function InitiativeTracker() {
                             border:`1px solid ${form.type===t?col:'var(--border)'}`,
                             background:form.type===t?`${col}33`:'none',
                             color:form.type===t?col:'var(--text-dim)',
-                            fontFamily:'var(--display)',fontSize:11,fontWeight:600,
+                            fontFamily:'var(--display)',fontSize:14,fontWeight:600,
                             textTransform:'uppercase',letterSpacing:'0.06em'}}>
                     {t}
                   </button>
@@ -2094,12 +2201,12 @@ function InitiativeTracker() {
             <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
               placeholder="Name" onKeyDown={e=>e.key==='Enter'&&addCombatant()}
               style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
-                      padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none'}}/>
+                      padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
             {form.type==='player' && chars.length>0 && (
               <select value={form.charId}
                 onChange={e=>{const c=chars.find((ch:any)=>ch.id===e.target.value);setForm(f=>({...f,charId:e.target.value,name:c?c.name:f.name}))}}
                 style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
-                        padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none',cursor:'pointer'}}>
+                        padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',cursor:'pointer'}}>
                 <option value="">— Link character sheet (optional) —</option>
                 {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -2107,11 +2214,11 @@ function InitiativeTracker() {
             <div style={{display:'flex',gap:8}}>
               {[['Wound Threshold','wt'],['Strain Threshold','st']].map(([lbl,k])=>(
                 <div key={k} style={{flex:1}}>
-                  <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:3}}>{lbl}</div>
+                  <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:3}}>{lbl}</div>
                   <input type="number" min={1} max={40} value={(form as any)[k]}
                     onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}
                     style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
-                            padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:12,outline:'none'}}/>
+                            padding:'7px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
                 </div>
               ))}
             </div>
@@ -2122,14 +2229,14 @@ function InitiativeTracker() {
 
           {/* Dice roller */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:14}}>
-            <div style={{fontFamily:'var(--display)',fontSize:11,fontWeight:700,letterSpacing:'0.1em',
+            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.1em',
                          textTransform:'uppercase',color:'var(--text-dim)',marginBottom:10}}>Dice Roller</div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>
               {DIE_BTNS.map(d=>(
                 <button key={d.key} onClick={()=>setPool(p=>({...p,[d.key]:(p as any)[d.key]+1}))}
                   style={{padding:'5px 9px',borderRadius:5,border:`1px solid ${d.col}66`,cursor:'pointer',
                           background:(pool as any)[d.key]>0?`${d.col}22`:'none',color:d.col,
-                          fontFamily:'var(--display)',fontSize:11,fontWeight:600}}>
+                          fontFamily:'var(--display)',fontSize:14,fontWeight:600}}>
                   {(pool as any)[d.key]>0?`${d.label} ×${(pool as any)[d.key]}`:d.label}
                 </button>
               ))}
@@ -2139,7 +2246,7 @@ function InitiativeTracker() {
               <Btn style={{padding:'8px 12px'}} onClick={()=>{setPool({ability:0,proficiency:0,difficulty:0,challenge:0,boost:0,setback:0});setResult(null)}}>Clear</Btn>
             </div>
             <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,padding:12,minHeight:72}}>
-              {!result && <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:11}}>Roll result will appear here</span>}
+              {!result && <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14}}>Roll result will appear here</span>}
               {result && (
                 <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
                   {result.s>0  && <RV val={`+${result.s}`}  lbl="Success"   col="#4CAF50"/>}
@@ -2156,18 +2263,18 @@ function InitiativeTracker() {
 
           {/* Combat log */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:12}}>
-            <div style={{fontFamily:'var(--display)',fontSize:10,fontWeight:700,letterSpacing:'0.1em',
+            <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,letterSpacing:'0.1em',
                          textTransform:'uppercase',color:'var(--text-dim)',marginBottom:8}}>Combat Log</div>
             <div style={{display:'flex',flexDirection:'column',gap:3,maxHeight:180,overflowY:'auto'}}>
               {(data.log||[]).map((e:any)=>(
-                <div key={e.id} style={{fontSize:10,fontFamily:'var(--mono)',padding:'3px 0',
+                <div key={e.id} style={{fontSize:13,fontFamily:'var(--mono)',padding:'3px 0',
                                         borderBottom:'1px solid rgba(255,255,255,0.04)',
                                         color:e.type==='important'?'var(--gold)':e.type==='danger'?'var(--red)':'var(--text-dim)'}}>
                   <span style={{opacity:0.5,marginRight:6}}>{String(e.time||'').slice(11,16)}</span>
                   {e.message}
                 </div>
               ))}
-              {(data.log||[]).length===0 && <div style={{fontSize:10,color:'var(--text-dim)',fontFamily:'var(--mono)'}}>No entries yet.</div>}
+              {(data.log||[]).length===0 && <div style={{fontSize:13,color:'var(--text-dim)',fontFamily:'var(--mono)'}}>No entries yet.</div>}
             </div>
           </div>
 
@@ -2180,9 +2287,132 @@ function InitiativeTracker() {
 function RV({ val, lbl, col }: { val:string; lbl:string; col:string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-      <div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:700,color:col}}>{val}</div>
-      <div style={{fontSize:9,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-dim)'}}>{lbl}</div>
+      <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:col}}>{val}</div>
+      <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-dim)'}}>{lbl}</div>
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CRITICAL INJURY TRACKER CARD
+// ─────────────────────────────────────────────────────────────────────────────
+function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }:
+  { title:string; injuries:any[]; table:typeof CREW_CRIT; isShip:boolean; col?:number;
+    onAdd:(inj:any)=>void; onRemove:(id:string)=>void }) {
+  const [roll,      setRoll]      = useState('')
+  const [character, setCharacter] = useState('')
+  const [showTable, setShowTable] = useState(false)
+
+  const rollNum = parseInt(roll)
+  const preview = !isNaN(rollNum) && rollNum > 0
+    ? (table.find(c => rollNum >= c.lo && rollNum <= c.hi) ?? table[table.length-1])
+    : null
+
+  const sevColor = (s:number) =>
+    s >= 5 ? '#922B21' : s >= 4 ? '#922B21' : s >= 3 ? 'var(--red)' : s >= 2 ? '#D35400' : '#E67E22'
+
+  const canAdd = !!preview && (isShip || character.trim().length > 0)
+
+  return (
+    <GmCard title={title} col={col??1}>
+      {/* Add form */}
+      <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap',alignItems:'center'}}>
+        {!isShip && (
+          <input value={character} onChange={e=>setCharacter(e.target.value)} placeholder="Character name"
+            style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 9px',
+                    color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,flex:1,minWidth:90,outline:'none'}}/>
+        )}
+        <input value={roll} onChange={e=>setRoll(e.target.value)} placeholder="d100" type="number" min={1} max={999}
+          style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 9px',
+                  color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,width:80,outline:'none'}}/>
+        <button onClick={()=>setRoll(String(Math.floor(Math.random()*100)+1))}
+          style={{padding:'5px 11px',borderRadius:4,border:'1px solid var(--border2)',background:'var(--panel)',
+                  color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,cursor:'pointer'}}>
+          Roll
+        </button>
+        <button disabled={!canAdd} onClick={()=>{
+            if (!preview || (!isShip && !character.trim())) return
+            onAdd({id:Date.now().toString(),...(!isShip?{character}:{}),roll:rollNum,...preview})
+            setRoll(''); setCharacter('')
+          }}
+          style={{padding:'5px 11px',borderRadius:4,
+                  border:`1px solid ${canAdd?'rgba(212,172,13,0.5)':'var(--border)'}`,
+                  background:canAdd?'rgba(212,172,13,0.1)':'var(--panel)',
+                  color:canAdd?'var(--gold)':'var(--text-dim)',
+                  fontFamily:'var(--display)',fontSize:14,fontWeight:700,cursor:canAdd?'pointer':'default'}}>
+          Add
+        </button>
+      </div>
+
+      {/* Roll preview */}
+      {preview && (
+        <div style={{marginBottom:10,padding:'7px 11px',borderRadius:4,
+                     background:sevColor(preview.sev)+'22',border:`1px solid ${sevColor(preview.sev)}55`}}>
+          <span style={{color:sevColor(preview.sev),fontFamily:'var(--display)',fontWeight:700,fontSize:15}}>
+            {preview.name}{' '}
+          </span>
+          <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13}}>{preview.eff}</span>
+        </div>
+      )}
+
+      {/* Active injuries */}
+      {injuries.length === 0 ? (
+        <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,
+                     textAlign:'center',padding:'12px 0',borderTop:'1px solid var(--border)'}}>
+          No active {isShip ? 'critical hits' : 'critical injuries'}
+        </div>
+      ) : injuries.map((inj:any) => (
+        <div key={inj.id} style={{display:'flex',gap:8,alignItems:'flex-start',padding:'7px 9px',
+                                   marginBottom:5,background:'rgba(255,255,255,0.02)',
+                                   border:'1px solid var(--border)',borderRadius:5}}>
+          {!isShip && (
+            <span style={{color:'var(--gold)',fontFamily:'var(--display)',fontSize:14,
+                          flexShrink:0,minWidth:70,paddingTop:1}}>{inj.character}</span>
+          )}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{color:sevColor(inj.sev),fontFamily:'var(--display)',fontWeight:600,fontSize:14}}>
+              {inj.name}
+            </div>
+            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13,lineHeight:1.4}}>
+              {inj.eff}
+            </div>
+          </div>
+          <button onClick={()=>onRemove(inj.id)}
+            style={{background:'none',border:'none',color:'var(--text-dim)',
+                    fontSize:19,cursor:'pointer',lineHeight:1,flexShrink:0,paddingTop:0}}>
+            ×
+          </button>
+        </div>
+      ))}
+
+      {/* Reference table toggle */}
+      <button onClick={()=>setShowTable(s=>!s)}
+        style={{marginTop:8,width:'100%',padding:'5px',borderRadius:4,border:'1px solid var(--border)',
+                background:'none',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13,cursor:'pointer'}}>
+        {showTable ? 'Hide' : 'Show'} Reference Table
+      </button>
+      {showTable && (
+        <div style={{marginTop:6,maxHeight:280,overflowY:'auto',border:'1px solid var(--border)',borderRadius:4}}>
+          {table.map((row,i) => (
+            <div key={i} style={{display:'flex',gap:8,padding:'4px 9px',alignItems:'baseline',
+                                  borderBottom:i<table.length-1?'1px solid rgba(255,255,255,0.04)':'none',
+                                  background:i%2===0?'rgba(255,255,255,0.01)':'transparent'}}>
+              <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-dim)',
+                            minWidth:58,flexShrink:0}}>
+                {row.lo}{row.lo!==row.hi?`–${row.hi}`:''}
+              </span>
+              <span style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,
+                            color:sevColor(row.sev),minWidth:130,flexShrink:0}}>
+                {row.name}
+              </span>
+              <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-dim)',flex:1}}>
+                {row.eff}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </GmCard>
   )
 }
 
@@ -2207,17 +2437,11 @@ function GMDashboard() {
 
   const upd = (k:string,v:any) => setState((s:any)=>({...s,[k]:v}))
 
-  const doneCount   = Object.values(state.missionStatus||{}).filter(s=>s==='done').length
-  const activeCount = Object.values(state.missionStatus||{}).filter(s=>s==='active').length
-  const act    = state.session<=6?'I: Ghost Protocol':state.session<=14?'II: The Knife\'s Edge':'III: Silent Storm'
-  const fill   = state.session<=6?(state.session/6)*100:state.session<=14?((state.session-6)/8)*100:((state.session-14)/10)*100
-  const totalD = SHIP_UPGRADES.filter(u=>(state.shipUpgrades||{})[u.id]).reduce((s,u)=>s+u.cost,0)
-
-  function cycleMission(id:string){
-    const order=['pending','active','done']
-    const cur=(state.missionStatus||{})[id]||'pending'
-    upd('missionStatus',{...state.missionStatus,[id]:order[(order.indexOf(cur)+1)%order.length]})
-  }
+  const duty: number          = state.duty ?? 0
+  const tier: number          = state.tier ?? 1
+  const crewCriticals: any[]  = state.crewCriticals ?? []
+  const shipCriticals: any[]  = state.shipCriticals ?? []
+  const dutyThresholdMet      = duty >= 100
 
   if(loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--text-dim)',fontFamily:'var(--mono)'}}>
@@ -2230,38 +2454,13 @@ function GMDashboard() {
       {saving && (
         <div style={{position:'fixed',top:60,right:16,background:'rgba(212,172,13,0.15)',
                      border:'1px solid rgba(212,172,13,0.4)',borderRadius:6,padding:'6px 12px',
-                     fontSize:11,color:'var(--gold)',fontFamily:'var(--mono)',zIndex:99}}>
+                     fontSize:14,color:'var(--gold)',fontFamily:'var(--mono)',zIndex:99}}>
           Saving…
         </div>
       )}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:1200,margin:'0 auto'}}>
 
-        {/* Session progress */}
-        <GmCard title="Campaign Progress">
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:4}}>Current Session</div>
-            <div style={{display:'flex',alignItems:'baseline',gap:10}}>
-              <div style={{fontFamily:'var(--display)',fontSize:48,fontWeight:700,color:'var(--gold)',lineHeight:1}}>{state.session}</div>
-              <SBtn onClick={()=>upd('session',Math.max(1,state.session-1))}>−</SBtn>
-              <SBtn onClick={()=>upd('session',state.session+1)}>+</SBtn>
-            </div>
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',marginTop:2}}>Act {act}</div>
-            <div style={{background:'rgba(255,255,255,0.06)',borderRadius:4,height:6,marginTop:8,overflow:'hidden'}}>
-              <div style={{height:'100%',borderRadius:4,transition:'width 0.4s',width:`${fill}%`,
-                           background:state.session<=6?'var(--blue-bright)':state.session<=14?'var(--purple-bright)':'var(--red)'}}/>
-            </div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            {[['Missions Done',doneCount],['Active',activeCount],['Heat',state.heatLevel],['Renaus',state.renausTrack]].map(([l,v])=>(
-              <div key={l as string} style={{background:'var(--bg3)',borderRadius:5,padding:'8px 10px',border:'1px solid var(--border)'}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>{l}</div>
-                <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,color:'var(--text-bright)'}}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </GmCard>
-
-        {/* Heat track */}
+        {/* ── Heat Track ── */}
         <GmCard title="Heat Track">
           <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:10}}>
             {Array.from({length:10}).map((_,i)=>{
@@ -2271,7 +2470,7 @@ function GMDashboard() {
                 <div key={i} onClick={()=>upd('heatLevel',state.heatLevel===i+1?i:i+1)}
                   style={{width:26,height:26,borderRadius:4,border:'1px solid var(--border2)',cursor:'pointer',
                           background:bg,display:'flex',alignItems:'center',justifyContent:'center',
-                          fontFamily:'var(--mono)',fontSize:10,color:on?'white':'transparent',
+                          fontFamily:'var(--mono)',fontSize:13,color:on?'white':'transparent',
                           boxShadow:on?`0 0 6px ${i>=7?'rgba(192,57,43,0.4)':'rgba(230,126,34,0.4)'}`:''}}>{i+1}</div>
               )
             })}
@@ -2279,12 +2478,12 @@ function GMDashboard() {
           {[['1–2','Cold — Normal operations'],['3–4','Warm — Checkpoints tighten'],
             ['5–6','Hot — Renaus hunting'],['7–8','Burning — ISB active'],['9–10','Inferno — Full manhunt']].map(([r,e])=>(
             <div key={r} style={{display:'flex',gap:8,marginBottom:5,alignItems:'center'}}>
-              <span style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--red)',minWidth:32}}>{r}</span>
-              <span style={{fontSize:11,color:'var(--text-dim)'}}>{e}</span>
+              <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--red)',minWidth:32}}>{r}</span>
+              <span style={{fontSize:14,color:'var(--text-dim)'}}>{e}</span>
             </div>
           ))}
           <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)'}}>
-            <div style={{fontFamily:'var(--display)',fontSize:11,fontWeight:700,letterSpacing:'0.08em',
+            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.08em',
                          textTransform:'uppercase',color:'var(--gold)',marginBottom:8}}>Renaus Track</div>
             <div style={{display:'flex',gap:6}}>
               {Array.from({length:5}).map((_,i)=>(
@@ -2292,24 +2491,24 @@ function GMDashboard() {
                   style={{width:34,height:34,borderRadius:4,border:'1px solid var(--border2)',cursor:'pointer',
                           background:i<state.renausTrack?'#FF9800':'rgba(255,255,255,0.04)',
                           display:'flex',alignItems:'center',justifyContent:'center',
-                          fontSize:10,fontFamily:'var(--mono)',color:i<state.renausTrack?'white':'transparent',
+                          fontSize:13,fontFamily:'var(--mono)',color:i<state.renausTrack?'white':'transparent',
                           boxShadow:i<state.renausTrack?'0 0 6px rgba(255,152,0,0.4)':''}}>□{i+1}</div>
               ))}
             </div>
-            <div style={{fontSize:10,color:'var(--text-dim)',fontFamily:'var(--mono)',marginTop:6,lineHeight:1.6}}>
+            <div style={{fontSize:13,color:'var(--text-dim)',fontFamily:'var(--mono)',marginTop:6,lineHeight:1.6}}>
               □3 = Active hunt  □4 = Profile known  □5 = Full manhunt
             </div>
           </div>
         </GmCard>
 
-        {/* Moral ledger */}
+        {/* ── Moral Ledger ── */}
         <GmCard title="Moral Ledger">
           {([['MERCY','mercyCount','var(--green-bright)'],
              ['EXPEDIENCY','expedCount','var(--red)']] as [string,string,string][]).map(([lbl,key,col])=>(
             <div key={key} style={{marginBottom:14}}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                <span style={{fontSize:12,color:col,minWidth:90,fontFamily:'var(--display)',fontWeight:600}}>{lbl}</span>
-                <span style={{fontFamily:'var(--mono)',fontSize:12,color:col,marginLeft:'auto'}}>{(state as any)[key]}</span>
+                <span style={{fontSize:15,color:col,minWidth:90,fontFamily:'var(--display)',fontWeight:600}}>{lbl}</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:15,color:col,marginLeft:'auto'}}>{(state as any)[key]}</span>
               </div>
               <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
                 {Array.from({length:10}).map((_,i)=>(
@@ -2327,123 +2526,119 @@ function GMDashboard() {
             const col=d>=3?'var(--green-bright)':d<=-3?'var(--red)':'var(--gold)'
             return (
               <div style={{background:'var(--bg3)',border:`1px solid ${col}40`,borderRadius:6,padding:10,marginTop:4}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:4,
+                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:4,
                              textTransform:'uppercase',letterSpacing:'0.08em'}}>Act III Outcome</div>
-                <div style={{fontSize:11,color:col,lineHeight:1.5}}>{txt}</div>
+                <div style={{fontSize:14,color:col,lineHeight:1.5}}>{txt}</div>
               </div>
             )
           })()}
         </GmCard>
 
-        {/* Mission status */}
-        <GmCard title="Mission Status" col={2}>
-          <div style={{display:'flex',flexDirection:'column',gap:5}}>
-            {MISSIONS.map(m=>{
-              const status=(state.missionStatus||{})[m.id]||'pending'
-              const sc=status==='done'?'var(--green-bright)':status==='active'?'var(--gold)':'rgba(255,255,255,0.15)'
-              return (
-                <div key={m.id} onClick={()=>cycleMission(m.id)}
-                  style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',cursor:'pointer',
-                          borderRadius:5,border:'1px solid var(--border)',background:'rgba(255,255,255,0.02)',
-                          transition:'all 0.2s'}}>
-                  <div style={{width:8,height:8,borderRadius:'50%',background:sc,flexShrink:0,
-                               boxShadow:status==='active'?`0 0 6px ${sc}`:'',
-                               animation:status==='active'?'pulse 2s ease-in-out infinite':''}}/>
-                  <span style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',minWidth:30}}>ACT {m.act}</span>
-                  <div style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,color:'var(--text)',flex:1}}>{m.name}</div>
-                  <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--gold)'}}>{m.duty} Duty</div>
-                  <span style={{fontSize:10,fontFamily:'var(--mono)',color:sc,minWidth:46,textAlign:'right'}}>{status.toUpperCase()}</span>
-                </div>
-              )
-            })}
-          </div>
-          <div style={{fontSize:10,color:'var(--text-dim)',fontFamily:'var(--mono)',marginTop:8}}>
-            Click a mission to cycle: pending → active → done
-          </div>
-        </GmCard>
-
-        {/* Ship status */}
-        <GmCard title="Phantom Tide — Status">
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:7,marginBottom:14}}>
-            {[['Sil','4'],['Speed','3'],['Handling','-1'],['Defence','1/1'],['Armour','3']].map(([l,v])=>(
-              <div key={l} style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,padding:8,textAlign:'center'}}>
-                <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>{l}</div>
-                <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:700,color:'var(--text-bright)'}}>{v}</div>
+        {/* ── Duty Tracker ── */}
+        <GmCard title="Duty Tracker">
+          <div style={{textAlign:'center',marginBottom:12}}>
+            <div style={{fontFamily:'var(--display)',fontSize:54,fontWeight:700,color:'var(--gold)',lineHeight:1}}>
+              {duty}
+            </div>
+            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',marginTop:3}}>
+              / 100 threshold
+            </div>
+            <div style={{background:'rgba(255,255,255,0.06)',borderRadius:4,height:5,margin:'8px 0 4px',overflow:'hidden'}}>
+              <div style={{height:'100%',borderRadius:4,transition:'width 0.4s',
+                           width:`${Math.min(100,(duty/100)*100)}%`,
+                           background:dutyThresholdMet?'var(--green-bright)':'var(--gold)'}}/>
+            </div>
+            {dutyThresholdMet && (
+              <div style={{marginTop:6,padding:'4px 10px',background:'rgba(39,174,96,0.15)',
+                           border:'1px solid var(--green-bright)',borderRadius:4,display:'inline-block',
+                           color:'var(--green-bright)',fontFamily:'var(--mono)',fontSize:13,
+                           fontWeight:700,letterSpacing:'0.1em'}}>
+                ✓ THRESHOLD MET
               </div>
+            )}
+          </div>
+
+          <div style={{display:'flex',gap:5,justifyContent:'center',flexWrap:'wrap',marginBottom:10}}>
+            {([1,5,10,-1,-5] as number[]).map(n=>(
+              <button key={n} onClick={()=>upd('duty',Math.max(0,duty+n))}
+                style={{padding:'4px 10px',borderRadius:4,fontFamily:'var(--mono)',fontSize:14,cursor:'pointer',
+                        border:`1px solid ${n>0?'rgba(212,172,13,0.4)':'rgba(192,57,43,0.4)'}`,
+                        background:n>0?'rgba(212,172,13,0.08)':'rgba(192,57,43,0.08)',
+                        color:n>0?'var(--gold)':'var(--red)'}}>
+                {n>0?`+${n}`:n}
+              </button>
             ))}
-            <div onClick={()=>upd('stealthActive',!state.stealthActive)}
-              style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,padding:8,textAlign:'center',cursor:'pointer'}}>
-              <div style={{fontSize:9,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Stealth</div>
-              <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,
-                           color:state.stealthActive?'var(--cyan)':'var(--red)'}}>
-                {state.stealthActive?'ACTIVE':'OFFLINE'}
-              </div>
-            </div>
           </div>
-          {([['HULL TRAUMA','ht',25,'var(--red)'],
-             ['SYSTEM STRAIN','sst',20,'#E67E22']] as [string,string,number,string][]).map(([lbl,key,max,col])=>(
-            <div key={key} style={{marginBottom:10}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                <span style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>{lbl}  {(state as any)[key]} / {max}</span>
-                <div style={{display:'flex',gap:4}}>
-                  <SBtn onClick={()=>upd(key,Math.max(0,(state as any)[key]-1))}>−</SBtn>
-                  <SBtn onClick={()=>upd(key,Math.min(max,(state as any)[key]+1))}>+</SBtn>
-                </div>
-              </div>
-              <div style={{display:'flex',gap:3,flexWrap:'wrap'}}>
-                {Array.from({length:max}).map((_,i)=>(
-                  <div key={i} onClick={()=>upd(key,i<(state as any)[key]?i:i+1)}
-                    style={{width:12,height:12,borderRadius:2,border:'1px solid rgba(255,255,255,0.14)',cursor:'pointer',
-                            background:i<(state as any)[key]?col:'transparent',
-                            outline:key==='ht'&&i===12?'1px solid var(--gold)':'none',outlineOffset:1,transition:'all 0.1s'}}/>
-                ))}
+
+          {dutyThresholdMet && (
+            <button onClick={()=>setState((s:any)=>({...s,duty:Math.max(0,(s.duty??0)-100),tier:(s.tier??1)+1}))}
+              style={{width:'100%',padding:'9px',borderRadius:5,border:'1px solid var(--green-bright)',
+                      background:'rgba(39,174,96,0.15)',color:'var(--green-bright)',
+                      fontFamily:'var(--display)',fontSize:15,fontWeight:700,
+                      letterSpacing:'0.08em',cursor:'pointer',marginBottom:10}}>
+              SPEND DUTY — Advance to Tier {tier + 1}
+            </button>
+          )}
+
+          <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
+                       padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:2}}>Current Tier</div>
+              <div style={{fontFamily:'var(--display)',fontSize:30,fontWeight:700,color:'var(--text-bright)',lineHeight:1}}>
+                {tier}
               </div>
             </div>
-          ))}
-        </GmCard>
-
-        {/* Ship upgrades */}
-        <GmCard title={`Ship Upgrades — ${totalD} Duty Spent`} col={2}>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16}}>
-            {(['A','B','E','F'] as const).map(branch=>{
-              const names: Record<string,string> = {A:'Stealth & Sensors',B:'Combat Systems',E:'Support',F:'Hangar & Fighters'}
-              return (
-                <div key={branch}>
-                  <div style={{fontSize:10,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',
-                               letterSpacing:'0.08em',marginBottom:8}}>Branch {branch} — {names[branch]}</div>
-                  {SHIP_UPGRADES.filter(u=>u.branch===branch).map(u=>(
-                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0'}}>
-                      <div onClick={()=>upd('shipUpgrades',{...state.shipUpgrades,[u.id]:!(state.shipUpgrades||{})[u.id]})}
-                        style={{width:16,height:16,borderRadius:3,cursor:'pointer',flexShrink:0,
-                                border:`1px solid ${(state.shipUpgrades||{})[u.id]?'var(--green-bright)':'var(--border2)'}`,
-                                background:(state.shipUpgrades||{})[u.id]?'var(--green-bright)':'none',
-                                display:'flex',alignItems:'center',justifyContent:'center',
-                                fontSize:11,color:'var(--bg)',transition:'all 0.15s'}}>
-                        {(state.shipUpgrades||{})[u.id]?'✓':''}
-                      </div>
-                      <div style={{fontSize:12,flex:1,color:(state.shipUpgrades||{})[u.id]?'var(--text-bright)':'var(--text-dim)'}}>{u.name}</div>
-                      <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--gold)'}}>{u.cost}D</div>
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
+            <div style={{display:'flex',gap:5}}>
+              <SBtn onClick={()=>upd('tier',Math.max(1,tier-1))}>−</SBtn>
+              <SBtn onClick={()=>upd('tier',tier+1)}>+</SBtn>
+            </div>
           </div>
         </GmCard>
 
-        {/* GM Notes */}
-        <GmCard title={`GM Notes — Session ${state.session}`} col={3}>
-          <textarea value={state.gmNotes||''} onChange={e=>upd('gmNotes',e.target.value)}
+        {/* ── GM Notes ── */}
+        <GmCard title={`GM Notes — Session ${state.session ?? 1}`} col={2}>
+          <div style={{display:'flex',gap:6,marginBottom:8,alignItems:'center'}}>
+            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>Session</div>
+            <SBtn onClick={()=>upd('session',Math.max(1,(state.session??1)-1))}>−</SBtn>
+            <div style={{fontFamily:'var(--display)',fontSize:21,fontWeight:700,color:'var(--gold)',minWidth:24,textAlign:'center'}}>
+              {state.session ?? 1}
+            </div>
+            <SBtn onClick={()=>upd('session',(state.session??1)+1)}>+</SBtn>
+          </div>
+          <textarea value={state.gmNotes||''} onChange={(e:any)=>upd('gmNotes',e.target.value)}
             style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
-                    padding:10,color:'var(--text)',fontFamily:'var(--body)',fontSize:12,
-                    resize:'vertical',outline:'none',minHeight:120,lineHeight:1.6}}
+                    padding:10,color:'var(--text)',fontFamily:'var(--body)',fontSize:15,
+                    resize:'vertical',outline:'none',minHeight:140,lineHeight:1.6}}
             placeholder="Session notes, NPC states, ongoing threads, player decisions to remember..."/>
         </GmCard>
 
-        {/* Player Accounts */}
-        <GmCard title="Player Accounts" col={3}>
+        {/* ── Player Accounts ── */}
+        <GmCard title="Player Accounts">
           <PlayerAccountsCard/>
         </GmCard>
+
+        {/* ── Critical Injuries — Crew ── */}
+        <CritInjuryCard
+          title="Critical Injuries — Crew"
+          injuries={crewCriticals}
+          table={CREW_CRIT}
+          isShip={false}
+          col={2}
+          onAdd={(inj:any)=>upd('crewCriticals',[...crewCriticals,inj])}
+          onRemove={(id:string)=>upd('crewCriticals',crewCriticals.filter((c:any)=>c.id!==id))}
+        />
+
+        {/* ── Critical Hits — Ship ── */}
+        <CritInjuryCard
+          title="Critical Hits — Ship"
+          injuries={shipCriticals}
+          table={SHIP_CRIT}
+          isShip={true}
+          col={1}
+          onAdd={(inj:any)=>upd('shipCriticals',[...shipCriticals,inj])}
+          onRemove={(id:string)=>upd('shipCriticals',shipCriticals.filter((c:any)=>c.id!==id))}
+        />
 
       </div>
     </div>
@@ -2491,11 +2686,11 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
   return (
     <div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
                  background:'var(--bg)',flexDirection:'column',gap:0}}>
-      <div style={{fontFamily:'var(--display)',fontSize:22,fontWeight:700,color:'var(--gold)',
+      <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--gold)',
                    letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:6}}>
         Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
       </div>
-      <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',
+      <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
                    letterSpacing:'0.12em',marginBottom:32}}>SECURE ACCESS TERMINAL</div>
 
       {/* Mode toggle */}
@@ -2503,7 +2698,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                    border:'1px solid var(--border)',borderRadius:'8px 8px 0 0',overflow:'hidden'}}>
         {(['login','signup'] as const).map(m => (
           <button key={m} onClick={()=>switchMode(m)} type="button"
-            style={{flex:1,padding:'9px 0',fontFamily:'var(--mono)',fontSize:11,fontWeight:600,
+            style={{flex:1,padding:'9px 0',fontFamily:'var(--mono)',fontSize:14,fontWeight:600,
                     letterSpacing:'0.1em',textTransform:'uppercase',border:'none',cursor:'pointer',
                     background: mode===m ? 'var(--panel)' : 'transparent',
                     color: mode===m ? 'var(--gold)' : 'var(--text-dim)',
@@ -2518,36 +2713,36 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                 borderRadius:'0 0 10px 10px',padding:'24px 32px 28px',width:320,
                 display:'flex',flexDirection:'column',gap:16}}>
         <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
                        letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Username</div>
           <input value={username} onChange={e=>setUsername(e.target.value)}
             autoFocus autoComplete="username"
             style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
-                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,
+                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,
                     outline:'none',boxSizing:'border-box'}}/>
         </div>
         <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
                        letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Password</div>
           <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
             autoComplete={mode==='login' ? 'current-password' : 'new-password'}
             style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
-                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,
+                    padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,
                     outline:'none',boxSizing:'border-box'}}/>
         </div>
         {mode === 'signup' && (
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
                          letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Confirm Password</div>
             <input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)}
               autoComplete="new-password"
               style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,
-                      padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:13,
+                      padding:'9px 12px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,
                       outline:'none',boxSizing:'border-box'}}/>
           </div>
         )}
         {mode === 'signup' && (
-          <div style={{fontFamily:'var(--mono)',fontSize:10,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
                        lineHeight:1.6,padding:'6px 8px',background:'rgba(255,255,255,0.03)',
                        borderRadius:5,border:'1px solid var(--border)'}}>
             New accounts have <span style={{color:'var(--text)'}}>player access</span> — galaxy map &amp; your character only.
@@ -2555,14 +2750,14 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
           </div>
         )}
         {error && (
-          <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--red)',
+          <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--red)',
                        background:'rgba(192,57,43,0.1)',border:'1px solid rgba(192,57,43,0.3)',
                        borderRadius:5,padding:'7px 10px'}}>{error}</div>
         )}
         <button type="submit" disabled={loading}
           style={{marginTop:4,padding:'10px',borderRadius:6,border:'1px solid rgba(212,172,13,0.5)',
                   background:'rgba(212,172,13,0.12)',color:'var(--gold)',fontFamily:'var(--display)',
-                  fontSize:13,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
+                  fontSize:16,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',
                   cursor:loading?'wait':'pointer',opacity:loading?0.6:1}}>
           {loading ? (mode==='login' ? 'Authenticating…' : 'Creating Account…') : (mode==='login' ? 'Sign In' : 'Create Account')}
         </button>
@@ -2608,26 +2803,26 @@ function PlayerAccountsCard() {
     setUsers(u=>u.map((x:any)=>x.id===userId?{...x,character_id:characterId}:x))
   }
 
-  if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:11}}>Loading…</div>
+  if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14}}>Loading…</div>
 
   return (
     <div>
       {/* Existing users */}
       {users.filter((u:any)=>u.role==='player').length===0 && (
-        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
       )}
       {users.filter((u:any)=>u.role==='player').map((u:any) => (
         <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',
                                 borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-          <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
+          <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
           <select value={u.character_id||''} onChange={e=>linkChar(u.id,e.target.value)}
             style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}>
+                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}>
             <option value=''>— no character —</option>
             {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <button onClick={()=>deleteUser(u.id)}
-            style={{background:'none',border:'none',color:'var(--red)',fontSize:14,cursor:'pointer',flexShrink:0}}>×</button>
+            style={{background:'none',border:'none',color:'var(--red)',fontSize:17,cursor:'pointer',flexShrink:0}}>×</button>
         </div>
       ))}
 
@@ -2635,22 +2830,22 @@ function PlayerAccountsCard() {
       <div style={{marginTop:14,display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
         <input placeholder="username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}
           style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}/>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}/>
         <input placeholder="password" type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
           style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}/>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}/>
         <select value={form.characterId} onChange={e=>setForm(f=>({...f,characterId:e.target.value}))}
           style={{flex:'1 1 110px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:11}}>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}>
           <option value=''>— no character —</option>
           {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <button onClick={createUser}
           style={{padding:'6px 14px',borderRadius:4,border:'1px solid rgba(212,172,13,0.4)',
                   background:'rgba(212,172,13,0.1)',color:'var(--gold)',fontFamily:'var(--display)',
-                  fontSize:11,fontWeight:700,letterSpacing:'0.08em',cursor:'pointer'}}>Add Player</button>
+                  fontSize:14,fontWeight:700,letterSpacing:'0.08em',cursor:'pointer'}}>Add Player</button>
       </div>
-      {error && <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:11,color:'var(--red)'}}>{error}</div>}
+      {error && <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:14,color:'var(--red)'}}>{error}</div>}
     </div>
   )
 }
@@ -2730,7 +2925,7 @@ export default function App() {
                      background:'linear-gradient(90deg,transparent,var(--red),var(--gold),var(--red),transparent)'}}/>
 
         {!isMobile && (
-          <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:700,color:'var(--gold)',
+          <div style={{fontFamily:'var(--display)',fontSize:21,fontWeight:700,color:'var(--gold)',
                        letterSpacing:'0.12em',textTransform:'uppercase',marginRight:32,whiteSpace:'nowrap'}}>
             Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
           </div>
@@ -2741,12 +2936,12 @@ export default function App() {
             {TABS.map(t=>(
               <button key={t.id} onClick={()=>setTab(t.id)}
                 style={{padding:'0 16px',height:52,border:'none',background:'none',
-                        fontFamily:'var(--display)',fontSize:13,fontWeight:600,
+                        fontFamily:'var(--display)',fontSize:16,fontWeight:600,
                         letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',
                         color:tab===t.id?'var(--gold)':'var(--text-dim)',transition:'all 0.2s',
                         display:'flex',alignItems:'center',gap:8,
                         borderBottom:tab===t.id?'2px solid var(--gold)':'2px solid transparent'}}>
-                <span style={{fontSize:14}}>{t.icon}</span>{t.label}
+                <span style={{fontSize:17}}>{t.icon}</span>{t.label}
               </button>
             ))}
           </nav>
@@ -2763,11 +2958,11 @@ export default function App() {
                 <div style={{width:14,height:14,borderRadius:'50%',background:'white',position:'absolute',
                              top:2,transition:'left 0.2s',left:showHidden?18:2}}/>
               </div>
-              <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>Show Hidden</span>
+              <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>Show Hidden</span>
             </div>
           )}
           {!isMobile && (
-            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>
               <span>HEAT</span>
               {Array.from({length:10}).map((_,i)=>(
                 <div key={i} style={{width:8,height:8,borderRadius:1,
@@ -2778,7 +2973,7 @@ export default function App() {
             </div>
           )}
           {!isMobile && (
-            <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)',
+            <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
                          background:'var(--panel)',border:'1px solid var(--border)',
                          borderRadius:4,padding:'3px 8px'}}>
               Session {topSession}
@@ -2786,15 +2981,15 @@ export default function App() {
           )}
           {/* User badge + logout */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>{auth.username}</span>
-            <span style={{fontFamily:'var(--mono)',fontSize:10,borderRadius:3,padding:'2px 6px',
+            <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>{auth.username}</span>
+            <span style={{fontFamily:'var(--mono)',fontSize:13,borderRadius:3,padding:'2px 6px',
                           background:isGm?'rgba(212,172,13,0.1)':'rgba(74,144,226,0.1)',
                           border:`1px solid ${isGm?'rgba(212,172,13,0.3)':'rgba(74,144,226,0.3)'}`,
                           color:isGm?'var(--gold)':'#4a90e2'}}>{isGm?'GM':'PLAYER'}</span>
             <button onClick={logout}
               style={{padding:'3px 10px',borderRadius:4,border:'1px solid var(--border)',
                       background:'var(--panel)',color:'var(--text-dim)',fontFamily:'var(--display)',
-                      fontSize:11,fontWeight:600,letterSpacing:'0.06em',cursor:'pointer'}}>Sign Out</button>
+                      fontSize:14,fontWeight:600,letterSpacing:'0.06em',cursor:'pointer'}}>Sign Out</button>
           </div>
         </div>
       </div>
@@ -2827,8 +3022,8 @@ export default function App() {
                       gap:3,padding:'4px 0',
                       borderTop:tab===t.id?'2px solid var(--gold)':'2px solid transparent',
                       color:tab===t.id?'var(--gold)':'var(--text-dim)'}}>
-              <span style={{fontSize:18}}>{t.icon}</span>
-              <span style={{fontFamily:'var(--display)',fontSize:9,fontWeight:600,
+              <span style={{fontSize:21}}>{t.icon}</span>
+              <span style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,
                             letterSpacing:'0.06em',textTransform:'uppercase'}}>{t.label}</span>
             </button>
           ))}
