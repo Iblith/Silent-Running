@@ -78,13 +78,20 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
     obj[parts[parts.length-1]]=val; onChange(nc)
   }
 
-  const [newTalent, setNewTalent] = useState({name:'',desc:''})
-  const [newWeapon, setNewWeapon] = useState({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
-  const [newItem, setNewItem]     = useState({name:'',description:'',encumbrance:0})
+  const [showOptions, setShowOptions] = useState(false)
+  const [newTalent, setNewTalent]     = useState({name:'',desc:''})
+  const [newWeapon, setNewWeapon]     = useState({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
+  const [newArmour, setNewArmour]     = useState({name:'',soak:0,defenseMelee:0,defenseRanged:0})
+  const [newItem, setNewItem]         = useState({name:'',description:'',encumbrance:0})
 
   const derivedWT   = char.woundThreshold||12
   const derivedST   = char.strainThreshold||12
-  const derivedSoak = (char.characteristics?.Brawn||2) + (char.soak||0)
+  const armourSoak    = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.soak)||0),0)
+  const armourMelee   = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.defenseMelee)||0),0)
+  const armourRanged  = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.defenseRanged)||0),0)
+  const derivedSoak   = (char.characteristics?.Brawn||2) + armourSoak
+  const derivedMelee  = armourMelee
+  const derivedRanged = armourRanged
   const encumbranceCapacity = 5 + (char.characteristics?.Brawn||2)
   const encumbranceCurrent  = (char.inventory||[]).reduce((sum:number, item:any) => sum + (Number(item.encumbrance)||0), 0)
 
@@ -142,19 +149,44 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </div>
             </div>
             <div>
-              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY</div>
-              <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.duty||0}</div>
-                <SBtn onClick={()=>update('duty',(char.duty||0)+1)}>+</SBtn>
-                <SBtn onClick={()=>update('duty',Math.max(0,(char.duty||0)-1))}>−</SBtn>
-              </div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY TYPE</div>
               <input value={char.dutyType||''} onChange={e=>update('dutyType',e.target.value)}
-                placeholder="Duty type"
-                style={{marginTop:4,background:'none',border:'none',borderBottom:'1px solid var(--border)',
-                        color:'var(--text-dim)',fontFamily:'var(--body)',fontSize:14,padding:'2px 0',
+                placeholder="—"
+                style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',
+                        color:'var(--text)',fontFamily:'var(--body)',fontSize:15,padding:'2px 0',
                         outline:'none',width:'100%',textAlign:'right'}}/>
             </div>
           </div>
+        </div>
+
+        {/* ── Options ── */}
+        <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,
+                     overflow:'hidden',marginBottom:16}}>
+          <button onClick={()=>setShowOptions(o=>!o)}
+            style={{width:'100%',padding:'10px 16px',background:'none',border:'none',cursor:'pointer',
+                    display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:14,fontWeight:700,color:'var(--text-dim)',
+                          textTransform:'uppercase',letterSpacing:'0.1em'}}>Character Options</span>
+            <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>{showOptions?'▲':'▼'}</span>
+          </button>
+          {showOptions && (
+            <div style={{padding:'0 16px 16px',display:'flex',gap:24,flexWrap:'wrap'}}>
+              {([['Wound Threshold','woundThreshold',12],['Strain Threshold','strainThreshold',12]] as [string,string,number][]).map(([lbl,field,def])=>(
+                <div key={field}>
+                  <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                               textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{lbl} (base)</div>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <SBtn onClick={()=>update(field,Math.max(1,(char[field]||def)-1))}>−</SBtn>
+                    <span style={{fontFamily:'var(--display)',fontSize:21,fontWeight:700,
+                                  color:'var(--text-bright)',minWidth:28,textAlign:'center'}}>
+                      {char[field]||def}
+                    </span>
+                    <SBtn onClick={()=>update(field,(char[field]||def)+1)}>+</SBtn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Characteristics ── */}
@@ -200,30 +232,16 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                 </div>
               </div>
             ))}
-            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
-                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Soak</div>
-              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{derivedSoak}</div>
-              <div style={{fontSize:15,color:'var(--text-dim)',marginTop:4}}>Brawn + armour</div>
-            </div>
-            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
-                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence (Melee)</div>
-              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defenseMelee||0}</div>
-              <div style={{display:'flex',gap:4,marginTop:6}}>
-                <SBtn onClick={()=>update('defenseMelee',Math.max(0,(char.defenseMelee||0)-1))}>−</SBtn>
-                <SBtn onClick={()=>update('defenseMelee',(char.defenseMelee||0)+1)}>+</SBtn>
+            {([['Soak','var(--text-bright)',derivedSoak,'Brawn + armour'],
+               ['Defence (Melee)','#4FC3F7',derivedMelee,'from armour'],
+               ['Defence (Ranged)','#4FC3F7',derivedRanged,'from armour']] as [string,string,number,string][]).map(([lbl,col,val,sub])=>(
+              <div key={lbl} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
+                <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                             textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>{lbl}</div>
+                <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:col}}>{val}</div>
+                <div style={{fontSize:13,color:'var(--text-dim)',marginTop:4}}>{sub}</div>
               </div>
-            </div>
-            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
-                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence (Ranged)</div>
-              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defenseRanged||0}</div>
-              <div style={{display:'flex',gap:4,marginTop:6}}>
-                <SBtn onClick={()=>update('defenseRanged',Math.max(0,(char.defenseRanged||0)-1))}>−</SBtn>
-                <SBtn onClick={()=>update('defenseRanged',(char.defenseRanged||0)+1)}>+</SBtn>
-              </div>
-            </div>
+            ))}
           </div>
         </CardSection>
 
@@ -356,6 +374,62 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                     if(!newWeapon.name.trim()) return
                     update('weapons',[...(char.weapons||[]),newWeapon])
                     setNewWeapon({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
+                  }}>+</Btn>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+        </CardSection>
+
+        {/* ── Armour ── */}
+        <CardSection title="Armour">
+          <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as any}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
+            <thead>
+              <tr>{['Name','Soak','Def (Melee)','Def (Ranged)',''].map(h=>(
+                <th key={h} style={{fontFamily:'var(--mono)',fontSize:14,textTransform:'uppercase',
+                                    letterSpacing:'0.08em',color:'var(--text-dim)',padding:'5px 7px',
+                                    textAlign:'left',borderBottom:'1px solid var(--border)'}}>{h}</th>
+              ))}</tr>
+            </thead>
+            <tbody>
+              {(char.armour||[]).map((a:any,i:number)=>(
+                <tr key={i}>
+                  {(['name','soak','defenseMelee','defenseRanged'] as const).map(f=>(
+                    <td key={f} style={{padding:'6px 7px',fontSize:15,borderBottom:'1px solid rgba(255,255,255,0.04)'}}>
+                      <input value={a[f]??''} onChange={e=>{
+                        const arr=[...char.armour]; arr[i]={...arr[i],[f]:f==='name'?e.target.value:Number(e.target.value)}; update('armour',arr)
+                      }} type={f==='name'?'text':'number'}
+                        style={{background:'none',border:'none',color:'var(--text)',fontFamily:f==='name'?'var(--body)':'var(--mono)',fontSize:15,outline:'none',width:'100%'}}/>
+                    </td>
+                  ))}
+                  <td>
+                    <button onClick={()=>update('armour',(char.armour||[]).filter((_:any,j:number)=>j!==i))}
+                      style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{padding:'4px 7px'}}>
+                  <input value={newArmour.name} onChange={e=>setNewArmour(a=>({...a,name:e.target.value}))}
+                    placeholder="name"
+                    style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
+                            padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
+                </td>
+                {(['soak','defenseMelee','defenseRanged'] as const).map(f=>(
+                  <td key={f} style={{padding:'4px 7px'}}>
+                    <input type="number" value={(newArmour as any)[f]} onChange={e=>setNewArmour(a=>({...a,[f]:Number(e.target.value)}))}
+                      placeholder="0"
+                      style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
+                              padding:'5px 7px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:'100%'}}/>
+                  </td>
+                ))}
+                <td style={{padding:'4px 7px'}}>
+                  <Btn variant="primary" style={{padding:'6px 10px'}} onClick={()=>{
+                    if(!newArmour.name.trim()) return
+                    update('armour',[...(char.armour||[]),newArmour])
+                    setNewArmour({name:'',soak:0,defenseMelee:0,defenseRanged:0})
                   }}>+</Btn>
                 </td>
               </tr>
