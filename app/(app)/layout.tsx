@@ -77,6 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { path:'/galaxy',      label:'Galaxy Map',   icon:'✦',  gmOnly:false },
     { path:'/characters',  label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false },
     { path:'/adversaries', label:'Adversaries',  icon:'⚔',  gmOnly:true  },
+    { path:'/datapad',     label:'Datapads',     icon:'📟', gmOnly:false },
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 

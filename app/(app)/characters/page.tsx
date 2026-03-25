@@ -84,8 +84,8 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
   const [newArmour, setNewArmour]     = useState({name:'',soak:0,defenseMelee:0,defenseRanged:0})
   const [newItem, setNewItem]         = useState({name:'',description:'',encumbrance:0})
 
-  const derivedWT   = char.woundThreshold||12
-  const derivedST   = char.strainThreshold||12
+  const derivedWT   = (char.woundThreshold||12) + (char.characteristics?.Brawn||2)
+  const derivedST   = (char.strainThreshold||12) + (char.characteristics?.Willpower||2)
   const armourSoak    = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.soak)||0),0)
   const armourMelee   = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.defenseMelee)||0),0)
   const armourRanged  = (char.armour||[]).reduce((s:number,a:any)=>s+(Number(a.defenseRanged)||0),0)

@@ -121,6 +121,14 @@ export async function POST() {
       expires_at TEXT NOT NULL
     )`)
 
+    await run(`CREATE TABLE IF NOT EXISTS datapads (
+      id         TEXT PRIMARY KEY,
+      title      TEXT NOT NULL DEFAULT 'Untitled',
+      content    TEXT NOT NULL DEFAULT '',
+      revealed   INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`)
+
     await run(`INSERT OR IGNORE INTO campaign_state (id) VALUES ('main')`)
     await run(`INSERT OR IGNORE INTO initiative_state (id) VALUES ('main')`)
 
