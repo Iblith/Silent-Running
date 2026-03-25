@@ -207,7 +207,7 @@ export default function DatapadPage() {
   }
 
   return (
-    <div style={{flex:1,overflowY:'auto',padding:20,background:'var(--bg)'}}>
+    <div style={{height:'100%',overflowY:'auto',padding:20,background:'var(--bg)'}}>
       <div style={{maxWidth:820,margin:'0 auto'}}>
 
         {/* ── Page heading ── */}
