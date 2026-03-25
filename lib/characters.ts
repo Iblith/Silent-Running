@@ -29,6 +29,7 @@ export function deserialise(row: any) {
     notes:           row.notes,
     xp:              row.xp,
     totalXp:         row.total_xp,
+    ownerId:         row.owner_id || '',
   }
 }
 

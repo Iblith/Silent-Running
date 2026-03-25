@@ -2101,7 +2101,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
 function CritRefTable() {
   const [open, setOpen] = useState(false)
-  const sevColor = (s:number) => s>=5?'#922B21':s>=4?'#C0392B':s>=3?'var(--red)':s>=2?'#D35400':'#E67E22'
+  const sevColor = (s:number) => s>=4?'#922B21':s>=3?'var(--red)':s>=2?'#D35400':'#E67E22'
   const sevLabel = (s:number) => s>=5?'Fatal':s>=4?'Severe':s>=3?'Serious':s>=2?'Major':'Minor'
   return (
     <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,
@@ -2360,12 +2360,14 @@ function InitiativeTracker() {
     {key:'setback',     label:'Setback',     col:'#78909C'},
   ]
 
+  const isMobile = useIsMobile()
+
   if(loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--text-dim)',fontFamily:'var(--mono)'}}>Loading…</div>
 
   return (
-    <div style={{height:'100%',display:'grid',gridTemplateColumns:'1fr 380px'}}>
+    <div style={{height:'100%',display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : '1fr 360px', overflow: isMobile ? 'auto' : 'hidden'}}>
       {/* Main combat area */}
-      <div style={{padding:20,overflowY:'auto',display:'flex',flexDirection:'column',gap:14}}>
+      <div style={{padding:16,overflowY:'auto',display:'flex',flexDirection:'column',gap:12}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--text-bright)',letterSpacing:'0.06em'}}>
             Initiative Order
@@ -2457,8 +2459,10 @@ function InitiativeTracker() {
       </div>
 
       {/* Right sidebar — tools */}
-      <div style={{background:'var(--bg2)',borderLeft:'1px solid var(--border)',
-                   display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div style={{background:'var(--bg2)',borderLeft: isMobile ? 'none' : '1px solid var(--border)',
+                   borderTop: isMobile ? '1px solid var(--border)' : 'none',
+                   display:'flex',flexDirection:'column',overflow: isMobile ? 'visible' : 'hidden',
+                   flexShrink:0}}>
         <div style={{padding:'14px 16px',borderBottom:'1px solid var(--border)',
                      fontFamily:'var(--display)',fontSize:16,fontWeight:700,
                      letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>
@@ -2585,21 +2589,22 @@ function RV({ val, lbl, col }: { val:string; lbl:string; col:string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SHIP STAT BLOCK + SHIPS VIEW
 // ─────────────────────────────────────────────────────────────────────────────
+function shipCatColor(c: string) {
+  if (c==='PLAYER SHIP')      return 'var(--gold)'
+  if (c==='CAPITAL SHIP')     return '#ef5350'
+  if (c==='REBEL VESSEL')     return '#66bb6a'
+  if (c==='STARFIGHTER')      return '#4fc3f7'
+  if (c==='BOMBER')           return '#ff7043'
+  if (c==='ASSAULT GUNSHIP')  return '#ff9800'
+  if (c==='TRANSPORT')        return '#90a4ae'
+  if (c==='PATROL / CORVETTE')return '#ce93d8'
+  return '#78909c'
+}
+
 function ShipStatBlock({ shipKey }: { shipKey: string }) {
   const s = SHIP_STATS[shipKey]
   if (!s) return null
-  const catColor = (c:string) => {
-    if (c==='PLAYER SHIP') return 'var(--gold)'
-    if (c==='CAPITAL SHIP') return '#ef5350'
-    if (c==='REBEL VESSEL') return '#66bb6a'
-    if (c==='STARFIGHTER') return '#4fc3f7'
-    if (c==='BOMBER') return '#ff7043'
-    if (c==='ASSAULT GUNSHIP') return '#ff9800'
-    if (c==='TRANSPORT') return '#90a4ae'
-    if (c==='PATROL / CORVETTE') return '#ce93d8'
-    return '#78909c'
-  }
-  const col = catColor(s.category)
+  const col = shipCatColor(s.category)
   return (
     <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',fontFamily:'var(--body)'}}>
       {/* Header */}
@@ -2711,18 +2716,6 @@ function ShipsView() {
     return matchCat && matchText
   })
 
-  const catColor = (c:string) => {
-    if (c==='PLAYER SHIP') return 'var(--gold)'
-    if (c==='CAPITAL SHIP') return '#ef5350'
-    if (c==='REBEL VESSEL') return '#66bb6a'
-    if (c==='STARFIGHTER') return '#4fc3f7'
-    if (c==='BOMBER') return '#ff7043'
-    if (c==='ASSAULT GUNSHIP') return '#ff9800'
-    if (c==='TRANSPORT') return '#90a4ae'
-    if (c==='PATROL / CORVETTE') return '#ce93d8'
-    return '#78909c'
-  }
-
   return (
     <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
       {/* Left panel — ship list */}
@@ -2742,9 +2735,9 @@ function ShipsView() {
             <button key={c} onClick={()=>setCatFilter(c)}
               style={{padding:'3px 8px',fontSize:13,borderRadius:3,cursor:'pointer',
                       fontFamily:'var(--mono)',letterSpacing:'0.05em',
-                      background:catFilter===c?catColor(c):'var(--panel)',
+                      background:catFilter===c?shipCatColor(c):'var(--panel)',
                       color:catFilter===c?'#000':'var(--text-dim)',
-                      border:`1px solid ${catFilter===c?catColor(c):'var(--border)'}`,
+                      border:`1px solid ${catFilter===c?shipCatColor(c):'var(--border)'}`,
                       fontWeight:catFilter===c?700:400}}>
               {c==='ALL'?'All':c}
             </button>
@@ -2755,15 +2748,15 @@ function ShipsView() {
           {filtered.map(([key,ship])=>(
             <div key={key} onClick={()=>setSelectedKey(key)}
               style={{padding:'9px 14px',cursor:'pointer',
-                      borderLeft:`3px solid ${selectedKey===key?catColor(ship.category):'transparent'}`,
+                      borderLeft:`3px solid ${selectedKey===key?shipCatColor(ship.category):'transparent'}`,
                       background:selectedKey===key?'rgba(255,255,255,0.04)':'transparent',
                       borderBottom:'1px solid var(--border)'}}>
               <div style={{fontSize:16,color:selectedKey===key?'var(--text-bright)':'var(--text)',
                            fontWeight:selectedKey===key?600:400,lineHeight:1.2}}>{ship.name}</div>
               <div style={{marginTop:3,display:'flex',alignItems:'center',gap:6}}>
                 <span style={{fontFamily:'var(--mono)',fontSize:13,padding:'1px 5px',borderRadius:2,
-                              background:`${catColor(ship.category)}20`,color:catColor(ship.category),
-                              border:`1px solid ${catColor(ship.category)}40`}}>
+                              background:`${shipCatColor(ship.category)}20`,color:shipCatColor(ship.category),
+                              border:`1px solid ${shipCatColor(ship.category)}40`}}>
                   {ship.category}
                 </span>
                 <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)'}}>
@@ -2815,7 +2808,7 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
     : null
 
   const sevColor = (s:number) =>
-    s >= 5 ? '#922B21' : s >= 4 ? '#922B21' : s >= 3 ? 'var(--red)' : s >= 2 ? '#D35400' : '#E67E22'
+    s >= 4 ? '#922B21' : s >= 3 ? 'var(--red)' : s >= 2 ? '#D35400' : '#E67E22'
 
   const canAdd = !!preview && (isShip || character.trim().length > 0)
 
@@ -2941,7 +2934,10 @@ function GMDashboard() {
     api('/api/campaign','PUT',debounced).finally(()=>setSaving(false))
   },[debounced])
 
-  const upd = (k:string,v:any) => setState((s:any)=>({...s,[k]:v}))
+  const upd = (k:string,v:any) => {
+    setState((s:any)=>({...s,[k]:v}))
+    if (k === 'campaignName') window.dispatchEvent(new CustomEvent('campaignNameChange', {detail: v}))
+  }
 
   const duty: number          = state.duty ?? 0
   const tier: number          = state.tier ?? 1
@@ -3175,7 +3171,7 @@ function GMDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 // LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,role:string,characterId:string}) => void }) {
+function LoginScreen({ onLogin, campaignName }: { onLogin: (auth: {id:string,username:string,role:string,characterId:string}) => void; campaignName: string }) {
   const [mode, setMode]         = useState<'login'|'signup'>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -3215,7 +3211,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                  background:'var(--bg)',flexDirection:'column',gap:0}}>
       <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--gold)',
                    letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:6}}>
-        Star wars FFG: <span style={{color:'var(--red)'}}>Campaign</span> 2
+        {campaignName}
       </div>
       <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',
                    letterSpacing:'0.12em',marginBottom:32}}>SECURE ACCESS TERMINAL</div>
@@ -3420,6 +3416,16 @@ export default function App() {
   // Sync document title
   useEffect(() => { document.title = topCampaignName }, [topCampaignName])
 
+  // Real-time campaign name from GMDashboard
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const name = (e as CustomEvent).detail || 'Operation: Silent Running'
+      setTopCampaignName(name)
+    }
+    window.addEventListener('campaignNameChange', handler)
+    return () => window.removeEventListener('campaignNameChange', handler)
+  }, [])
+
   async function logout() {
     await fetch('/api/auth/logout', {method:'POST'}).catch(()=>{})
     setAuth(null); setReady(false); setTab('gm')
@@ -3445,7 +3451,7 @@ export default function App() {
     </div>
   )
 
-  if (!auth) return <LoginScreen onLogin={user => { setAuth(user); if (user.role==='player') setTab('galaxy') }}/>
+  if (!auth) return <LoginScreen campaignName={topCampaignName} onLogin={user => { setAuth(user); if (user.role==='player') setTab('galaxy') }}/>
 
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
