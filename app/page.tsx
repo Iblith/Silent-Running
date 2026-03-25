@@ -134,6 +134,238 @@ const SHIP_CRIT: {lo:number,hi:number,sev:number,name:string,eff:string}[] = [
   {lo:154,hi:999,sev:5,name:'Vaporized',              eff:'Ship destroyed in an impressive fireball. Nothing survives'},
 ]
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SHIP DOSSIER  (19 vessels)
+// ─────────────────────────────────────────────────────────────────────────────
+const SHIP_STATS: Record<string,{
+  name:string; category:string; manufacturer:string; model:string;
+  silhouette:number; speed:number; handling:number;
+  defFore:number; defAft:number; armour:number;
+  hullTrauma:number; systemStrain:number;
+  weapons:{name:string;fire:string;damage:number;critical:number;range:string;qualities:string}[];
+  abilities:string[]; complement:string; consumables:string; hyperdrive:string; desc:string;
+}> = {
+  phantom_tide:{
+    name:'Phantom Tide',category:'PLAYER SHIP',manufacturer:"Modified Corellian Engineering Corp",model:'YT-2400 Light Freighter (heavily modified)',
+    silhouette:3,speed:4,handling:2,defFore:2,defAft:1,armour:3,hullTrauma:18,systemStrain:14,
+    weapons:[
+      {name:'Dorsal Laser Cannon Turret',fire:'1',damage:6,critical:3,range:'Close',qualities:'Accurate 1'},
+      {name:'Forward Concussion Missile Launcher',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 6'},
+    ],
+    abilities:['Sensor Mask (passive): add 2 setback to all checks to detect the Phantom Tide on sensors','Stealth Drive (active): reduce effective silhouette by 1; cannot fire weapons while active','Modular Hardpoints: crew may swap weapon/upgrade loadout at a port (1 downtime action)'],
+    complement:'Crew 4, Passengers 6',consumables:'2 months',hyperdrive:'Primary ×1, Backup ×12',
+    desc:'The crew\'s ship. A battered YT-2400 whose original hull plates have been replaced so many times she\'s practically a new vessel. She is fast, quiet, and fiercely loyal to anyone who keeps her running.',
+  },
+  isd:{
+    name:'ISD Hammer of Patience',category:'CAPITAL SHIP',manufacturer:'Kuat Drive Yards',model:'Imperial-class Star Destroyer (Mark I)',
+    silhouette:8,speed:2,handling:-3,defFore:4,defAft:2,armour:9,hullTrauma:120,systemStrain:80,
+    weapons:[
+      {name:'Heavy Turbolaser Batteries (×60)',fire:'5',damage:13,critical:3,range:'Long',qualities:'Breach 4, Slow-Firing 1'},
+      {name:'Turbolaser Batteries (×60)',fire:'5',damage:10,critical:3,range:'Medium',qualities:'Breach 3'},
+      {name:'Ion Cannon Batteries (×10)',fire:'3',damage:7,critical:4,range:'Medium',qualities:'Ion'},
+      {name:'Tractor Beam Projectors (×10)',fire:'3',damage:0,critical:0,range:'Short',qualities:'Tractor 6'},
+      {name:'Concussion Missile Tubes (×6)',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 36'},
+    ],
+    abilities:['Overwhelming Firepower: once per round, may fire one additional weapon system as an incidental','Flagship: all Imperial forces within close range add 1 boost to combat and discipline checks'],
+    complement:'Crew 37,085; Troops 9,700; Starfighters 72',consumables:'6 years',hyperdrive:'Primary ×2, Backup ×8',
+    desc:'Captain Renaus\' command. 1,600 metres of cold Imperial certainty. Wherever she appears, the sky goes dark.',
+  },
+  vsd:{
+    name:'Victory-class Star Destroyer',category:'CAPITAL SHIP',manufacturer:'Rendili StarDrive / Walex Blissex',model:'Victory-class Star Destroyer (Mark II)',
+    silhouette:7,speed:3,handling:-2,defFore:3,defAft:2,armour:7,hullTrauma:75,systemStrain:55,
+    weapons:[
+      {name:'Turbolaser Batteries (×20)',fire:'3',damage:10,critical:3,range:'Medium',qualities:'Breach 3'},
+      {name:'Ion Cannon Batteries (×10)',fire:'2',damage:7,critical:4,range:'Medium',qualities:'Ion'},
+      {name:'Concussion Missile Tubes (×10)',fire:'2',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 50'},
+    ],
+    abilities:['Tactical Flexibility: reduce the difficulty of all Piloting (Space) checks made to perform special maneuvers by 1'],
+    complement:'Crew 5,765; Troops 2,040; Starfighters 24',consumables:'4 years',hyperdrive:'Primary ×1, Backup ×6',
+    desc:'Older than the ISD but still dangerous in a patrol role. Common sight on sector blockades.',
+  },
+  gozanti:{
+    name:'Gozanti-class Cruiser',category:'PATROL / CORVETTE',manufacturer:'Gallofree Yards / Corellian Engineering Corp',model:'Gozanti-class Assault Carrier',
+    silhouette:4,speed:3,handling:0,defFore:1,defAft:1,armour:4,hullTrauma:22,systemStrain:16,
+    weapons:[
+      {name:'Light Turbolaser Cannons (×2)',fire:'1',damage:9,critical:3,range:'Medium',qualities:'Breach 2, Slow-Firing 1'},
+      {name:'Medium Laser Cannons (×2)',fire:'1',damage:6,critical:3,range:'Close',qualities:''},
+    ],
+    abilities:['Docking Clamps: can carry up to 4 TIE fighters externally; deploy as a maneuver'],
+    complement:'Crew 10, Troops 40, 4 docked TIEs',consumables:'3 months',hyperdrive:'Primary ×2, Backup ×12',
+    desc:'The Empire\'s workhorse transport and patrol vessel. Usually arrives before the Star Destroyer does.',
+  },
+  arquitens:{
+    name:'Arquitens-class Light Cruiser',category:'PATROL / CORVETTE',manufacturer:'Kuat Drive Yards',model:'Arquitens-class Light Cruiser',
+    silhouette:4,speed:4,handling:1,defFore:2,defAft:1,armour:4,hullTrauma:20,systemStrain:14,
+    weapons:[
+      {name:'Turbolaser Cannons (×4)',fire:'2',damage:10,critical:3,range:'Medium',qualities:'Breach 3, Slow-Firing 1'},
+      {name:'Laser Cannon Batteries (×4)',fire:'2',damage:6,critical:3,range:'Close',qualities:''},
+      {name:'Concussion Missile Tubes (×2)',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 12'},
+    ],
+    abilities:['Fast Response: if this ship acts first in a round, the difficulty of all checks targeting it this round increases by 1'],
+    complement:'Crew 700, Troops 100',consumables:'1 year',hyperdrive:'Primary ×1, Backup ×6',
+    desc:'Fast and well-armed for its size. Preferred by ISB liaisons and sector patrol commanders.',
+  },
+  decimator:{
+    name:'VT-49 Decimator',category:'PATROL / CORVETTE',manufacturer:'Sienar Fleet Systems',model:'VT-49 Decimator',
+    silhouette:4,speed:3,handling:0,defFore:1,defAft:1,armour:4,hullTrauma:18,systemStrain:13,
+    weapons:[
+      {name:'Heavy Laser Cannons (×2)',fire:'1',damage:6,critical:3,range:'Close',qualities:'Accurate 1'},
+      {name:'Concussion Missile Launcher (×1)',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 6'},
+      {name:'Tractor Beam Projector',fire:'1',damage:0,critical:0,range:'Short',qualities:'Tractor 3'},
+    ],
+    abilities:['Pursuit Drive: once per round, as a maneuver, increase speed by 1 for 1 round (may exceed max speed)'],
+    complement:'Crew 7, Troops 6',consumables:'2 months',hyperdrive:'Primary ×2, Backup ×12',
+    desc:'Heavy patrol craft used for customs interdiction, prisoner transfer, and high-value pursuits.',
+  },
+  tie_ln:{
+    name:'TIE/ln Space Superiority Starfighter',category:'STARFIGHTER',manufacturer:'Sienar Fleet Systems',model:'Twin Ion Engine Line Fighter',
+    silhouette:3,speed:4,handling:3,defFore:0,defAft:0,armour:2,hullTrauma:6,systemStrain:5,
+    weapons:[
+      {name:'Twin Light Laser Cannons',fire:'1',damage:5,critical:3,range:'Close',qualities:'Linked 1'},
+    ],
+    abilities:['No Shields: treat any hit that deals damage as a Critical Hit in addition to normal damage','Expendable: Imperial commanders may order TIE formations without counting casualties for Morale'],
+    complement:'1 pilot',consumables:'2 days',hyperdrive:'None',
+    desc:'Cheap, fast, and everywhere. Lacks shields and life support redundancy. Death is the acceptable trade-off.',
+  },
+  tie_in:{
+    name:'TIE/IN Interceptor',category:'STARFIGHTER',manufacturer:'Sienar Fleet Systems',model:'Twin Ion Engine Interceptor',
+    silhouette:3,speed:5,handling:4,defFore:0,defAft:0,armour:2,hullTrauma:7,systemStrain:6,
+    weapons:[
+      {name:'Quad Laser Cannons',fire:'1',damage:5,critical:3,range:'Close',qualities:'Linked 3, Accurate 1'},
+    ],
+    abilities:['No Shields: same as TIE/ln','Precision Strike: when performing an aim maneuver, may reroll one attack die'],
+    complement:'1 pilot',consumables:'2 days',hyperdrive:'None',
+    desc:'Assigned only to elite squadrons. Faster than an X-wing and terrifyingly well-armed for its class.',
+  },
+  tie_bomber:{
+    name:'TIE/sa Bomber',category:'BOMBER',manufacturer:'Sienar Fleet Systems',model:'Twin Ion Engine Bombing Fighter',
+    silhouette:3,speed:3,handling:1,defFore:0,defAft:0,armour:3,hullTrauma:8,systemStrain:7,
+    weapons:[
+      {name:'Twin Light Laser Cannons',fire:'1',damage:5,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Proton Torpedo Launcher',fire:'1',damage:8,critical:2,range:'Short',qualities:'Blast 6, Breach 6, Guided 2, Slow-Firing 1, Limited Ammo 6'},
+      {name:'Concussion Bomb Bay',fire:'1',damage:6,critical:3,range:'Engaged',qualities:'Blast 8, Breach 2, Slow-Firing 2, Limited Ammo 4'},
+    ],
+    abilities:['Precision Bombing: when targeting large vessels (silhouette 4+), may choose which hit location is affected'],
+    complement:'1 pilot',consumables:'2 days',hyperdrive:'None',
+    desc:'Slow but brutal against capital ships and installations. The bomber they send when they want something dead.',
+  },
+  lambda:{
+    name:'Lambda-class T-4a Shuttle',category:'TRANSPORT',manufacturer:'Sienar Fleet Systems',model:'Lambda-class T-4a Shuttle',
+    silhouette:4,speed:3,handling:0,defFore:2,defAft:1,armour:4,hullTrauma:16,systemStrain:12,
+    weapons:[
+      {name:'Forward Laser Cannons (×2)',fire:'1',damage:6,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Dorsal Laser Cannons (×2)',fire:'1',damage:6,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Retractable Belly Laser Cannon',fire:'1',damage:6,critical:3,range:'Close',qualities:''},
+    ],
+    abilities:['Priority Clearance: when broadcasting Imperial IFF codes, all Imperial patrol vessels require Hard Deception check to board'],
+    complement:'Crew 6, Passengers 20',consumables:'1 month',hyperdrive:'Primary ×1, Backup ×6',
+    desc:'The official shuttle of Imperial officers, Moffs, and the Emperor himself. Presence alone is a statement of authority.',
+  },
+  sentinel:{
+    name:'Sentinel-class Landing Craft',category:'TRANSPORT',manufacturer:'Cygnus Spaceworks',model:'Sentinel-class Landing Craft',
+    silhouette:4,speed:3,handling:0,defFore:1,defAft:1,armour:4,hullTrauma:18,systemStrain:13,
+    weapons:[
+      {name:'Laser Cannons (×6)',fire:'2',damage:6,critical:3,range:'Close',qualities:''},
+      {name:'Ion Cannons (×2)',fire:'1',damage:5,critical:4,range:'Short',qualities:'Ion'},
+      {name:'Concussion Missile Tubes (×2)',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 12'},
+    ],
+    abilities:['Assault Ramp: troops inside may deploy as a free action on the same turn the craft lands'],
+    complement:'Crew 5, Troops 75',consumables:'1 month',hyperdrive:'None',
+    desc:'Used for planetary assault drops. When one of these sets down, the fight is about to get close and personal.',
+  },
+  steadfast:{
+    name:'MC75 Steadfast Resolve',category:'REBEL VESSEL',manufacturer:'Mon Calamari Shipyards',model:'MC75 Star Cruiser',
+    silhouette:7,speed:2,handling:-1,defFore:3,defAft:3,armour:7,hullTrauma:80,systemStrain:60,
+    weapons:[
+      {name:'Turbolaser Batteries (×20)',fire:'3',damage:10,critical:3,range:'Long',qualities:'Breach 3'},
+      {name:'Ion Cannon Batteries (×6)',fire:'2',damage:7,critical:4,range:'Medium',qualities:'Ion'},
+      {name:'Proton Torpedo Tubes (×6)',fire:'1',damage:8,critical:2,range:'Short',qualities:'Blast 6, Breach 6, Guided 2, Slow-Firing 1, Limited Ammo 36'},
+    ],
+    abilities:['Redundant Systems: when this ship would gain system strain, reduce by 1 (minimum 0)','Alliance Command: all Rebel forces within medium range add 1 boost to Discipline checks'],
+    complement:'Crew 3,225; Troops 1,200; Starfighters 36',consumables:'2 years',hyperdrive:'Primary ×1, Backup ×6',
+    desc:'Haven Alpha. The heart of the Alliance presence in this sector. If she falls, the network falls with her.',
+  },
+  xwing:{
+    name:'T-65B X-wing Starfighter',category:'REBEL VESSEL',manufacturer:'Incom Corporation',model:'T-65B X-wing',
+    silhouette:3,speed:4,handling:2,defFore:1,defAft:1,armour:3,hullTrauma:9,systemStrain:8,
+    weapons:[
+      {name:'Quad Laser Cannons',fire:'1',damage:6,critical:3,range:'Close',qualities:'Linked 3'},
+      {name:'Proton Torpedo Launchers (×2)',fire:'1',damage:8,critical:2,range:'Short',qualities:'Blast 6, Breach 6, Guided 2, Slow-Firing 1, Limited Ammo 12'},
+    ],
+    abilities:['R2 Unit: astromech droid provides 1 automatic advantage on Piloting (Space) checks','Shield Regeneration: at end of each round, recover 1 system strain if no system strain was taken this round'],
+    complement:'1 pilot, 1 astromech',consumables:'1 week',hyperdrive:'Primary ×1',
+    desc:'The defining starfighter of the Rebellion. Tough, fast, and versatile. Has killed two Death Stars.',
+  },
+  ywing:{
+    name:'BTL-A4 Y-wing Starfighter',category:'REBEL VESSEL',manufacturer:'Koensayr Manufacturing',model:'BTL-A4 Y-wing',
+    silhouette:3,speed:3,handling:0,defFore:1,defAft:1,armour:4,hullTrauma:10,systemStrain:9,
+    weapons:[
+      {name:'Twin Laser Cannons',fire:'1',damage:6,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Ion Cannon Turret',fire:'1',damage:5,critical:4,range:'Close',qualities:'Ion'},
+      {name:'Proton Torpedo Launchers (×2)',fire:'1',damage:8,critical:2,range:'Short',qualities:'Blast 6, Breach 6, Guided 2, Slow-Firing 1, Limited Ammo 8'},
+    ],
+    abilities:['Heavy Bomber: when targeting silhouette 4+ vessels with torpedoes, upgrade the attack pool once'],
+    complement:'1 pilot, 1 optional astromech',consumables:'1 week',hyperdrive:'Primary ×1',
+    desc:'Old, battered, and irreplaceable. The workhorse of every Rebel strike package.',
+  },
+  awing:{
+    name:'RZ-1 A-wing Interceptor',category:'REBEL VESSEL',manufacturer:'Kuat Systems Engineering',model:'RZ-1 A-wing',
+    silhouette:2,speed:5,handling:4,defFore:1,defAft:1,armour:2,hullTrauma:6,systemStrain:7,
+    weapons:[
+      {name:'Twin Laser Cannons',fire:'1',damage:5,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Concussion Missile Launcher',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 6'},
+    ],
+    abilities:['Sensor Jamming: as a maneuver, pilot may activate sensor jammer; all attacks against this ship from beyond close range add 2 setback until next turn'],
+    complement:'1 pilot',consumables:'1 week',hyperdrive:'Primary ×1',
+    desc:'Faster than anything the Empire fields. Built for interception, not dogfighting — though pilots rarely make the distinction.',
+  },
+  uwing:{
+    name:'UT-60D U-wing Starfighter/Support Craft',category:'REBEL VESSEL',manufacturer:'Incom Corporation',model:'UT-60D U-wing',
+    silhouette:3,speed:3,handling:1,defFore:1,defAft:1,armour:3,hullTrauma:12,systemStrain:10,
+    weapons:[
+      {name:'Forward Laser Cannons (×2)',fire:'1',damage:6,critical:3,range:'Close',qualities:'Linked 1'},
+    ],
+    abilities:['Troop Transport: can carry 8 soldiers and deploy them in a single round via side doors','Suppression Run: when performing a strafing maneuver, all troops disembarking this round add 1 boost to their first check'],
+    complement:'2 crew, 8 troops',consumables:'3 weeks',hyperdrive:'Primary ×1',
+    desc:'The Alliance\'s troop taxi. Lands in places X-wings can\'t. Gets people home who wouldn\'t otherwise make it.',
+  },
+  laat:{
+    name:'LAAT/i Gunship',category:'ASSAULT GUNSHIP',manufacturer:'Rothana Heavy Engineering',model:'Low Altitude Assault Transport/infantry',
+    silhouette:3,speed:3,handling:1,defFore:1,defAft:1,armour:4,hullTrauma:14,systemStrain:11,
+    weapons:[
+      {name:'Laser Cannon Pods (×4)',fire:'2',damage:6,critical:3,range:'Close',qualities:'Linked 1'},
+      {name:'Concussion Missile Launchers (×2)',fire:'1',damage:6,critical:3,range:'Short',qualities:'Blast 4, Breach 4, Guided 3, Slow-Firing 1, Limited Ammo 8'},
+      {name:'Antipersonnel Blasters (×2)',fire:'1',damage:6,critical:3,range:'Engaged',qualities:'Autofire'},
+    ],
+    abilities:['Close Air Support: when allied ground troops are in the same zone, add 1 boost to their combat checks','Rapid Deploy: troops may disembark and act on the same round'],
+    complement:'2 crew, 30 troops',consumables:'2 weeks',hyperdrive:'None',
+    desc:'Clone Wars surplus. Still deadly. Beloved by insurgents and resistance fighters who can keep them running.',
+  },
+  null_wage:{
+    name:'Null Wage',category:'CIVILIAN / NEUTRAL',manufacturer:'Modified Corellian Engineering Corp',model:'Modified CR90 Corvette (criminal refit)',
+    silhouette:5,speed:4,handling:1,defFore:2,defAft:1,armour:5,hullTrauma:28,systemStrain:20,
+    weapons:[
+      {name:'Turbolaser Cannons (×4)',fire:'2',damage:9,critical:3,range:'Medium',qualities:'Breach 2, Slow-Firing 1'},
+      {name:'Laser Cannon Batteries (×4)',fire:'2',damage:6,critical:3,range:'Close',qualities:''},
+    ],
+    abilities:['Smuggler\'s Compartments: add 2 setback to all checks to find hidden cargo','Criminal IFF: can spoof Imperial, Rebel, or independent transponder codes once per session'],
+    complement:'Crew 30, Passengers 30',consumables:'6 months',hyperdrive:'Primary ×1, Backup ×6',
+    desc:'Drax Solenne\'s command. A CR90 with the Alliance markings cut off and something far more dangerous welded on.',
+  },
+  yt1300:{
+    name:'YT-1300 Light Freighter (generic)',category:'CIVILIAN / NEUTRAL',manufacturer:'Corellian Engineering Corp',model:'YT-1300 Light Freighter',
+    silhouette:3,speed:3,handling:1,defFore:1,defAft:0,armour:3,hullTrauma:14,systemStrain:11,
+    weapons:[
+      {name:'Laser Cannon Turret',fire:'1',damage:6,critical:3,range:'Close',qualities:''},
+    ],
+    abilities:['Reliable: once per session, if this ship would be disabled, reduce incoming Hull Trauma by 2 instead'],
+    complement:'Crew 2, Passengers 6',consumables:'2 months',hyperdrive:'Primary ×2, Backup ×12',
+    desc:'The most common light freighter in the galaxy. Half the crew in the Outer Rim started their careers on one of these.',
+  },
+}
+
+const SHIP_CATEGORIES = ['ALL','PLAYER SHIP','CAPITAL SHIP','PATROL / CORVETTE','STARFIGHTER','BOMBER','ASSAULT GUNSHIP','TRANSPORT','REBEL VESSEL','CIVILIAN / NEUTRAL']
+
 const LOCATIONS = [
   {id:'base',    name:"Kal'Shara Station",       type:'home',    x:170,y:420,ly:null,   threat:'Minimal',              desc:"The Phantom Tide's mobile base. Decommissioned ore platform. Hidden."},
   {id:'alpha',   name:'Haven Alpha',             type:'command', x:285,y:480,ly:22,     threat:'Hidden — Heat ≤ 3',    desc:'Mon Calamari cruiser Steadfast Resolve. Alliance command post.'},
@@ -903,15 +1135,15 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       <div style={{background:typeColor,padding:'8px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
         <div>
           <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:18,color:'#fff'}}>{npc.name}</div>
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'var(--mono)',letterSpacing:'0.08em'}}>{npc.species} · {npc.career}</div>
+          <div style={{fontSize:15,color:'rgba(255,255,255,0.75)',fontFamily:'var(--mono)',letterSpacing:'0.08em'}}>{npc.species} · {npc.career}</div>
         </div>
-        <div style={{background:'rgba(255,255,255,0.18)',borderRadius:4,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}}>{npc.type}</div>
+        <div style={{background:'rgba(255,255,255,0.18)',borderRadius:4,padding:'2px 8px',fontFamily:'var(--mono)',fontSize:15,fontWeight:700,color:'#fff',flexShrink:0}}>{npc.type}</div>
       </div>
       {/* Characteristics */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:1,background:'var(--border)'}}>
         {charLabels.map((c,i)=>(
           <div key={c} style={{background:typeBg,padding:'5px 2px',textAlign:'center'}}>
-            <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{c.slice(0,3)}</div>
+            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.04em'}}>{c.slice(0,3)}</div>
             <div style={{fontSize:23,fontWeight:700,fontFamily:'var(--display)',color:typeColor,lineHeight:1.1}}>{charVals[i]}</div>
           </div>
         ))}
@@ -926,17 +1158,17 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
           ...(npc.adversary?[{l:'Adv',v:npc.adversary}]:[]),
         ].map(s=>(
           <div key={s.l} style={{textAlign:'center',minWidth:32}}>
-            <div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase'}}>{s.l}</div>
+            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase'}}>{s.l}</div>
             <div style={{fontSize:18,fontWeight:700,color:'var(--text-bright)',fontFamily:'var(--display)'}}>{s.v}</div>
           </div>
         ))}
       </div>
       {/* Skills */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Skills</div>
+        <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Skills</div>
         <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
           {npc.skills.map(s=>(
-            <span key={s.name} style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'1px 5px',color:'var(--text-dim)'}}>
+            <span key={s.name} style={{fontFamily:'var(--mono)',fontSize:15,background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'1px 5px',color:'var(--text-dim)'}}>
               {s.name} {s.rank}
             </span>
           ))}
@@ -944,9 +1176,9 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       </div>
       {/* Weapons */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Weapons</div>
+        <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Weapons</div>
         {npc.weapons.map(w=>(
-          <div key={w.name} style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+          <div key={w.name} style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
             <span style={{color:'var(--text-bright)'}}>{w.name}</span>
             {' — '}Dmg {w.damage} | Crit {w.critical} | {w.range}{w.qualities?` | ${w.qualities}`:''}
           </div>
@@ -955,9 +1187,9 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       {/* Talents */}
       {npc.talents.length>0 && (
         <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Talents & Special Abilities</div>
+          <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>Talents & Special Abilities</div>
           {[...npc.talents.map(t=>({name:t.name,desc:t.desc})),...npc.abilities.map(a=>({name:'',desc:a}))].map((t,i)=>(
-            <div key={i} style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
+            <div key={i} style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:2,lineHeight:1.4}}>
               {t.name&&<span style={{color:'var(--text-bright)'}}>{t.name}: </span>}{t.desc}
             </div>
           ))}
@@ -965,18 +1197,18 @@ function StatBlock({ npcKey, isGm }: { npcKey: string; isGm: boolean }) {
       )}
       {/* Equipment */}
       <div style={{padding:'5px 12px',borderBottom:'1px solid var(--border)'}}>
-        <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>Equipment</div>
-        <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.4}}>{npc.equipment}</div>
+        <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>Equipment</div>
+        <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.4}}>{npc.equipment}</div>
       </div>
       {/* Description */}
       <div style={{padding:'7px 12px',borderBottom:isGm?'1px solid var(--border)':'none'}}>
-        <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.55}}>{npc.desc}</div>
+        <div style={{fontSize:16,color:'var(--text-dim)',lineHeight:1.55}}>{npc.desc}</div>
       </div>
       {/* GM Hook */}
       {isGm && (
         <div style={{padding:'7px 12px',background:'rgba(212,172,13,0.07)',borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-          <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{npc.hook}</div>
+          <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+          <div style={{fontSize:15,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{npc.hook}</div>
         </div>
       )}
     </div>
@@ -1021,7 +1253,7 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
         <div style={{borderBottom:`2px solid ${typeColor}`,padding:'14px 18px',display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
           <div style={{flex:1}}>
             <div style={{fontFamily:'var(--display)',fontWeight:700,fontSize:23,color:typeColor,letterSpacing:'0.05em'}}>{loc.name}</div>
-            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:2}}>
+            <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',letterSpacing:'0.1em',textTransform:'uppercase',marginTop:2}}>
               {TYPE_META[loc.type]?.label}
               {loc.ly   ? `  ·  ${loc.ly} ly from base` : ''}
               {loc.threat ? `  ·  ${loc.threat}` : ''}
@@ -1048,7 +1280,7 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
             <div>
               <p style={{fontSize:16,color:'var(--text-bright)',lineHeight:1.75,marginBottom:14}}>{data.overview}</p>
               <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',borderRadius:6,padding:12}}>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:5,textTransform:'uppercase',letterSpacing:'0.08em'}}>Atmosphere</div>
+                <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:typeColor,marginBottom:5,textTransform:'uppercase',letterSpacing:'0.08em'}}>Atmosphere</div>
                 <p style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.65,fontStyle:'italic',margin:0}}>{data.atmosphere}</p>
               </div>
             </div>
@@ -1069,13 +1301,13 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
                 <div key={s.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
                     <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor}}>{s.name}</div>
-                    <span style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{s.type}</span>
+                    <span style={{fontSize:14,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{s.type}</span>
                   </div>
                   <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55,marginBottom:s.inventory?8:0}}>{s.desc}</div>
                   {s.inventory && (
                     <div style={{background:'rgba(0,0,0,0.25)',borderRadius:4,padding:'6px 10px'}}>
-                      <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Sample Inventory</div>
-                      <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.6}}>{s.inventory}</div>
+                      <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:3}}>Sample Inventory</div>
+                      <div style={{fontSize:16,fontFamily:'var(--mono)',color:'var(--text-dim)',lineHeight:1.6}}>{s.inventory}</div>
                     </div>
                   )}
                 </div>
@@ -1091,12 +1323,12 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
                   ) : (
                     <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:12}}>
                       <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor,marginBottom:2}}>{n.name}</div>
-                      <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{n.role}</div>
+                      <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.08em'}}>{n.role}</div>
                       <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55}}>{n.desc}</div>
                       {isGm && n.hook && (
                         <div style={{marginTop:8,padding:'6px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-                          <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-                          <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.5}}>{n.hook}</div>
+                          <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:2,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                          <div style={{fontSize:15,color:'rgba(212,172,13,0.85)',lineHeight:1.5}}>{n.hook}</div>
                         </div>
                       )}
                     </div>
@@ -1111,14 +1343,14 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
                 <div key={q.name} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12,marginBottom:10}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:5}}>
                     <div style={{fontFamily:'var(--display)',fontWeight:600,fontSize:16,color:typeColor}}>{q.name}</div>
-                    <span style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{q.type}</span>
+                    <span style={{fontSize:14,fontFamily:'var(--mono)',letterSpacing:'0.08em',textTransform:'uppercase',background:'rgba(255,255,255,0.05)',borderRadius:3,padding:'2px 6px',color:'var(--text-dim)',flexShrink:0}}>{q.type}</span>
                   </div>
-                  <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6}}>Difficulty: {q.difficulty} · Reward: {q.reward}</div>
+                  <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:6}}>Difficulty: {q.difficulty} · Reward: {q.reward}</div>
                   <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.55}}>{q.desc}</div>
                   {isGm && (
                     <div style={{marginTop:8,padding:'7px 10px',background:'rgba(212,172,13,0.07)',borderRadius:4,borderTop:'1px solid rgba(212,172,13,0.25)'}}>
-                      <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
-                      <div style={{fontSize:13,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{q.gmHook}</div>
+                      <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:3,textTransform:'uppercase',letterSpacing:'0.08em'}}>GM Hook</div>
+                      <div style={{fontSize:15,color:'rgba(212,172,13,0.85)',lineHeight:1.55}}>{q.gmHook}</div>
                     </div>
                   )}
                 </div>
@@ -1127,7 +1359,7 @@ function LocationModal({ locId, isGm, onClose }: { locId: string; isGm: boolean;
           )}
           {activeTab==='dm' && isGm && data.dmNotes && (
             <div style={{background:'rgba(212,172,13,0.07)',border:'1px solid rgba(212,172,13,0.3)',borderRadius:6,padding:16}}>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>DM Notes — {loc.name}</div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',fontWeight:700,color:'var(--gold)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>DM Notes — {loc.name}</div>
               <div style={{fontSize:15,color:'rgba(212,172,13,0.88)',lineHeight:1.75}}>{data.dmNotes}</div>
             </div>
           )}
@@ -1167,12 +1399,12 @@ function AdversariesView() {
           </div>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…"
             style={{width:'100%',background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
-                    padding:'5px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,
+                    padding:'5px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,
                     outline:'none',boxSizing:'border-box'}}/>
           <div style={{display:'flex',gap:3,flexWrap:'wrap',marginTop:8}}>
             {(['ALL','NEMESIS','RIVAL','ALLY','MINION'] as const).map(t=>(
               <button key={t} onClick={()=>setTypeFilter(t)}
-                style={{padding:'2px 7px',borderRadius:4,cursor:'pointer',fontFamily:'var(--mono)',fontSize:12,fontWeight:700,
+                style={{padding:'2px 7px',borderRadius:4,cursor:'pointer',fontFamily:'var(--mono)',fontSize:14,fontWeight:700,
                        border:`1px solid ${typeFilter===t?'rgba(212,172,13,0.5)':'var(--border)'}`,
                        background:typeFilter===t?'rgba(212,172,13,0.1)':'var(--panel)',
                        color:typeFilter===t?'var(--gold)':'var(--text-dim)'}}>
@@ -1184,7 +1416,7 @@ function AdversariesView() {
         {/* Name list */}
         <div style={{flex:1,overflowY:'auto'}}>
           {filtered.length===0 && (
-            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,textAlign:'center',paddingTop:32}}>
+            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16,textAlign:'center',paddingTop:32}}>
               No matches
             </div>
           )}
@@ -1199,10 +1431,10 @@ function AdversariesView() {
                 {npc.name}
               </div>
               <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                <span style={{fontFamily:'var(--mono)',fontSize:11,fontWeight:700,
+                <span style={{fontFamily:'var(--mono)',fontSize:13,fontWeight:700,
                               color:typeColor(npc.type),letterSpacing:'0.06em'}}>{npc.type}</span>
-                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>·</span>
-                <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text-dim)'}}>{npc.species}</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)'}}>·</span>
+                <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)'}}>{npc.species}</span>
               </div>
             </div>
           ))}
@@ -1217,7 +1449,7 @@ function AdversariesView() {
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
                        height:'100%',gap:12,color:'var(--text-dim)'}}>
             <div style={{fontSize:36,opacity:0.3}}>⚔</div>
-            <div style={{fontFamily:'var(--mono)',fontSize:14,textAlign:'center'}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:16,textAlign:'center'}}>
               Select an adversary from the list to view their stat block.
             </div>
           </div>
@@ -1501,7 +1733,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
           </div>
           <div style={{flex:1,overflowY:'auto',padding:12}}>
             {!isMobile && (
-              <p style={{fontSize:14,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
+              <p style={{fontSize:16,color:'var(--text-dim)',fontFamily:'var(--mono)',marginBottom:12,lineHeight:1.6}}>
                 Click a node to select. Scroll to zoom. Drag to pan.
               </p>
             )}
@@ -1511,19 +1743,19 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
                 <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',marginBottom:4}}>
                   {selLoc.name}
                 </div>
-                <div style={{fontSize:13,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                <div style={{fontSize:15,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
                              color:TYPE_META[selLoc.type]?.color,marginBottom:6}}>
                   {TYPE_META[selLoc.type]?.label}
                 </div>
-                <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
+                <div style={{fontSize:16,color:'var(--text-dim)',lineHeight:1.5,marginBottom:8}}>{selLoc.desc}</div>
                 <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                   {selLoc.ly && (
-                    <span style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,255,255,0.06)',
+                    <span style={{fontFamily:'var(--mono)',fontSize:15,background:'rgba(255,255,255,0.06)',
                                   borderRadius:3,padding:'2px 6px',color:'var(--text-dim)'}}>
                       {selLoc.ly} ly
                     </span>
                   )}
-                  <span style={{fontFamily:'var(--mono)',fontSize:13,background:'rgba(255,100,100,0.08)',
+                  <span style={{fontFamily:'var(--mono)',fontSize:15,background:'rgba(255,100,100,0.08)',
                                 borderRadius:3,padding:'2px 6px',color:'rgba(255,120,120,0.8)'}}>
                     {selLoc.threat}
                   </span>
@@ -1532,14 +1764,14 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
                   <button onClick={()=>setModalLocId(selLoc.id)}
                     style={{marginTop:8,width:'100%',background:'rgba(212,172,13,0.1)',
                             border:'1px solid rgba(212,172,13,0.5)',borderRadius:4,padding:'7px',
-                            color:'var(--gold)',fontFamily:'var(--display)',fontSize:14,
+                            color:'var(--gold)',fontFamily:'var(--display)',fontSize:16,
                             fontWeight:700,letterSpacing:'0.08em',cursor:'pointer',transition:'background 0.15s'}}>
                     View Details
                   </button>
                 )}
               </div>
             )}
-            <div style={{fontSize:14,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
+            <div style={{fontSize:16,color:'var(--text-dim)',fontFamily:'var(--display)',fontWeight:700,
                          letterSpacing:'0.1em',textTransform:'uppercase',marginTop:8,marginBottom:8}}>
               All Locations
             </div>
@@ -1552,7 +1784,7 @@ function GalaxyMap({ showHidden, isGm }: { showHidden: boolean; isGm: boolean })
                 <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>
                   {loc.name}
                 </div>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
+                <div style={{fontSize:14,fontFamily:'var(--mono)',letterSpacing:'0.1em',textTransform:'uppercase',
                              color:TYPE_META[loc.type]?.color}}>
                   {TYPE_META[loc.type]?.label}
                   {loc.ly ? `  ·  ${loc.ly} ly` : ''}
@@ -1612,14 +1844,14 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
               {[['player','Player'],['species','Species'],['career','Career'],['specialisation','Specialisation']].map(([k,l])=>(
                 <div key={k} style={{display:'flex',flexDirection:'column',gap:2}}>
-                  <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                  <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                                textTransform:'uppercase',letterSpacing:'0.1em'}}>{l}</div>
                   <input value={char[k]||''} onChange={e=>update(k,e.target.value)} placeholder="—"
                     style={inp({minWidth:90})}/>
                 </div>
               ))}
               <div style={{display:'flex',flexDirection:'column',gap:2}}>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.1em'}}>Colour</div>
                 <div style={{display:'flex',gap:5,marginTop:4}}>
                   {CHAR_COLORS.map((c,i)=>(
@@ -1633,7 +1865,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',flexShrink:0}}>
             <div>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>XP SPENT</div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>XP SPENT</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.xp||0}</div>
                 <SBtn onClick={()=>update('xp',(char.xp||0)+5)}>+</SBtn>
@@ -1641,7 +1873,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </div>
             </div>
             <div>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY</div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>DUTY</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.duty||0}</div>
                 <SBtn onClick={()=>update('duty',(char.duty||0)+1)}>+</SBtn>
@@ -1657,7 +1889,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             {CHAR_KEYS.map(k=>(
               <div key={k} style={{background:'var(--panel)',border:'1px solid var(--border)',
                                    borderRadius:6,padding:'10px 8px',textAlign:'center'}}>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>{k}</div>
                 <div style={{fontFamily:'var(--display)',fontSize:31,fontWeight:700,
                              color:'var(--text-bright)',lineHeight:1}}>
@@ -1678,7 +1910,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             {([['Wounds','wounds',derivedWT,'var(--red)'],
                ['Strain','strain',derivedST,'#E67E22']] as [string,string,number,string][]).map(([lbl,field,max,col])=>(
               <div key={field} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                              textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>{lbl}</div>
                 <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>
                   {char[field]||0} / {max}
@@ -1695,13 +1927,13 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </div>
             ))}
             <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                            textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Soak</div>
               <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{derivedSoak}</div>
-              <div style={{fontSize:13,color:'var(--text-dim)',marginTop:4}}>Brawn + armour</div>
+              <div style={{fontSize:15,color:'var(--text-dim)',marginTop:4}}>Brawn + armour</div>
             </div>
             <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                            textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence</div>
               <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defense||0}</div>
               <div style={{display:'flex',gap:4,marginTop:6}}>
@@ -1733,7 +1965,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                       update(`skills.${skill}`, next===defaultAbbr ? rank : {rank, char:next})
                     }}
                     title={`Linked to ${abbr} — click to change`}
-                    style={{fontSize:13,fontFamily:'var(--mono)',width:30,textAlign:'center',
+                    style={{fontSize:15,fontFamily:'var(--mono)',width:30,textAlign:'center',
                             cursor:'pointer',borderRadius:3,padding:'1px 2px',userSelect:'none',
                             color:isCustom?'var(--gold)':'var(--text-dim)',
                             background:isCustom?'rgba(212,172,13,0.1)':'transparent',
@@ -1745,20 +1977,20 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                     {Array.from({length:prof}).map((_,i)=>(
                       <div key={`p${i}`} style={{width:14,height:14,borderRadius:3,background:'#FFD700',
                                                   color:'#332200',display:'flex',alignItems:'center',
-                                                  justifyContent:'center',fontSize:12,fontWeight:700}}>Y</div>
+                                                  justifyContent:'center',fontSize:14,fontWeight:700}}>Y</div>
                     ))}
                     {Array.from({length:abil}).map((_,i)=>(
                       <div key={`a${i}`} style={{width:14,height:14,borderRadius:3,background:'#4CAF50',
                                                   color:'#002200',display:'flex',alignItems:'center',
-                                                  justifyContent:'center',fontSize:12,fontWeight:700}}>G</div>
+                                                  justifyContent:'center',fontSize:14,fontWeight:700}}>G</div>
                     ))}
                     {rank===0&&<div style={{width:14,height:14,borderRadius:3,background:'rgba(255,255,255,0.08)',
                                             color:'var(--text-dim)',display:'flex',alignItems:'center',
-                                            justifyContent:'center',fontSize:12}}>—</div>}
+                                            justifyContent:'center',fontSize:14}}>—</div>}
                   </div>
                   <div style={{display:'flex',gap:2,alignItems:'center'}}>
                     <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.max(0,rank-1)}:Math.max(0,rank-1))}>−</SBtn>
-                    <span style={{fontFamily:'var(--mono)',fontSize:14,width:14,textAlign:'center',color:'var(--text)'}}>{rank}</span>
+                    <span style={{fontFamily:'var(--mono)',fontSize:16,width:14,textAlign:'center',color:'var(--text)'}}>{rank}</span>
                     <SBtn onClick={()=>update(`skills.${skill}`, typeof rawVal==='object'?{...rawVal,rank:Math.min(5,rank+1)}:Math.min(5,rank+1))}>+</SBtn>
                   </div>
                 </div>
@@ -1774,7 +2006,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                                   padding:10,display:'flex',gap:10,alignItems:'flex-start',marginBottom:6}}>
               <div style={{flex:1}}>
                 <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)',marginBottom:2}}>{t.name}</div>
-                <div style={{fontSize:14,color:'var(--text-dim)',lineHeight:1.5}}>{t.desc}</div>
+                <div style={{fontSize:16,color:'var(--text-dim)',lineHeight:1.5}}>{t.desc}</div>
               </div>
               <button onClick={()=>update('talents',(char.talents||[]).filter((_:any,j:number)=>j!==i))}
                 style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
@@ -1805,7 +2037,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:480}}>
             <thead>
               <tr>{['Name','Skill','Dam','Crit','Range','Qualities',''].map(h=>(
-                <th key={h} style={{fontFamily:'var(--mono)',fontSize:12,textTransform:'uppercase',
+                <th key={h} style={{fontFamily:'var(--mono)',fontSize:14,textTransform:'uppercase',
                                     letterSpacing:'0.08em',color:'var(--text-dim)',padding:'5px 7px',
                                     textAlign:'left',borderBottom:'1px solid var(--border)'}}>{h}</th>
               ))}</tr>
@@ -1928,9 +2160,9 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
                     display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:8}}>
-          {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:14,fontFamily:'var(--mono)'}}>Loading...</div>}
+          {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:16,fontFamily:'var(--mono)'}}>Loading...</div>}
           {!loading&&chars.length===0 && (
-            <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:14,fontFamily:'var(--mono)'}}>
+            <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:16,fontFamily:'var(--mono)'}}>
               {`No characters yet.`}<br/>{`Click + to create one.`}
             </div>
           )}
@@ -1951,7 +2183,7 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:600,color:'var(--text-bright)'}}>{c.name}</div>
-                  <div style={{fontSize:13,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
+                  <div style={{fontSize:15,color:'var(--text-dim)'}}>{c.career}{c.specialisation?` · ${c.specialisation}`:''}</div>
                 </div>
                 {canDelete && (
                   <button onClick={e=>{e.stopPropagation();deleteChar(c.id)}}
@@ -1963,7 +2195,7 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
         </div>
         {saving && (
           <div style={{padding:'8px 12px',borderTop:'1px solid var(--border)',
-                       fontSize:13,color:'var(--gold)',fontFamily:'var(--mono)',textAlign:'center'}}>
+                       fontSize:15,color:'var(--gold)',fontFamily:'var(--mono)',textAlign:'center'}}>
             Saving to database…
           </div>
         )}
@@ -2091,19 +2323,19 @@ function InitiativeTracker() {
         <div style={{display:'flex',alignItems:'center',gap:16,padding:'12px 16px',
                      background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8}}>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Round</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Round</div>
             <div style={{fontFamily:'var(--display)',fontSize:39,fontWeight:700,color:'var(--gold)',lineHeight:1}}>{data.round}</div>
           </div>
           <div style={{width:1,background:'var(--border)',alignSelf:'stretch'}}/>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Active</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Active</div>
             <div style={{fontFamily:'var(--display)',fontSize:18,fontWeight:600,color:'var(--text-bright)'}}>
               {data.slots[data.currentIdx]?.name||'—'}
             </div>
           </div>
           <div style={{width:1,background:'var(--border)',alignSelf:'stretch'}}/>
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Combatants</div>
+            <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Combatants</div>
             <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--text-bright)'}}>{data.slots.length}</div>
           </div>
         </div>
@@ -2127,19 +2359,19 @@ function InitiativeTracker() {
               <div style={{position:'absolute',left:0,top:0,bottom:0,width:3,background:accent}}/>
               <div style={{fontFamily:'var(--mono)',fontSize:19,fontWeight:700,
                            color:cur?accent:'var(--text-dim)',minWidth:26}}>{idx+1}</div>
-              <span style={{padding:'2px 7px',borderRadius:3,fontSize:12,fontFamily:'var(--mono)',
+              <span style={{padding:'2px 7px',borderRadius:3,fontSize:14,fontFamily:'var(--mono)',
                             textTransform:'uppercase',letterSpacing:'0.1em',
                             background:`${accent}33`,color:accent}}>{slot.type.toUpperCase()}</span>
               <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',flex:1}}>{slot.name}</div>
               {/* Wound pips */}
               <div style={{display:'flex',alignItems:'center',gap:3}}>
-                <span style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>W</span>
+                <span style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>W</span>
                 {Array.from({length:Math.min(slot.wt,15)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'wounds',i<(slot.wounds||0)?-1:1)}
                     style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
                             background:i<(slot.wounds||0)?'var(--red)':'transparent'}}/>
                 ))}
-                <span style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginLeft:5}}>S</span>
+                <span style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',marginLeft:5}}>S</span>
                 {Array.from({length:Math.min(slot.st,12)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'strain',i<(slot.strain||0)?-1:1)}
                     style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
@@ -2148,7 +2380,7 @@ function InitiativeTracker() {
               </div>
               {(slot.crits||[]).length>0 && (
                 <span style={{padding:'2px 6px',background:'rgba(192,57,43,0.3)',border:'1px solid var(--red)',
-                              borderRadius:3,fontSize:12,fontFamily:'var(--mono)',color:'var(--red)'}}>
+                              borderRadius:3,fontSize:14,fontFamily:'var(--mono)',color:'var(--red)'}}>
                   CRIT ×{slot.crits.length}
                 </span>
               )}
@@ -2179,7 +2411,7 @@ function InitiativeTracker() {
 
           {/* Add combatant */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:14,display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-dim)'}}>
+            <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-dim)'}}>
               Add Combatant
             </div>
             <div style={{display:'flex',gap:4}}>
@@ -2191,7 +2423,7 @@ function InitiativeTracker() {
                             border:`1px solid ${form.type===t?col:'var(--border)'}`,
                             background:form.type===t?`${col}33`:'none',
                             color:form.type===t?col:'var(--text-dim)',
-                            fontFamily:'var(--display)',fontSize:14,fontWeight:600,
+                            fontFamily:'var(--display)',fontSize:16,fontWeight:600,
                             textTransform:'uppercase',letterSpacing:'0.06em'}}>
                     {t}
                   </button>
@@ -2214,7 +2446,7 @@ function InitiativeTracker() {
             <div style={{display:'flex',gap:8}}>
               {[['Wound Threshold','wt'],['Strain Threshold','st']].map(([lbl,k])=>(
                 <div key={k} style={{flex:1}}>
-                  <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:3}}>{lbl}</div>
+                  <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:3}}>{lbl}</div>
                   <input type="number" min={1} max={40} value={(form as any)[k]}
                     onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}
                     style={{width:'100%',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
@@ -2229,14 +2461,14 @@ function InitiativeTracker() {
 
           {/* Dice roller */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:14}}>
-            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.1em',
+            <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,letterSpacing:'0.1em',
                          textTransform:'uppercase',color:'var(--text-dim)',marginBottom:10}}>Dice Roller</div>
             <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:10}}>
               {DIE_BTNS.map(d=>(
                 <button key={d.key} onClick={()=>setPool(p=>({...p,[d.key]:(p as any)[d.key]+1}))}
                   style={{padding:'5px 9px',borderRadius:5,border:`1px solid ${d.col}66`,cursor:'pointer',
                           background:(pool as any)[d.key]>0?`${d.col}22`:'none',color:d.col,
-                          fontFamily:'var(--display)',fontSize:14,fontWeight:600}}>
+                          fontFamily:'var(--display)',fontSize:16,fontWeight:600}}>
                   {(pool as any)[d.key]>0?`${d.label} ×${(pool as any)[d.key]}`:d.label}
                 </button>
               ))}
@@ -2246,7 +2478,7 @@ function InitiativeTracker() {
               <Btn style={{padding:'8px 12px'}} onClick={()=>{setPool({ability:0,proficiency:0,difficulty:0,challenge:0,boost:0,setback:0});setResult(null)}}>Clear</Btn>
             </div>
             <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:6,padding:12,minHeight:72}}>
-              {!result && <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14}}>Roll result will appear here</span>}
+              {!result && <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16}}>Roll result will appear here</span>}
               {result && (
                 <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
                   {result.s>0  && <RV val={`+${result.s}`}  lbl="Success"   col="#4CAF50"/>}
@@ -2263,18 +2495,18 @@ function InitiativeTracker() {
 
           {/* Combat log */}
           <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,padding:12}}>
-            <div style={{fontFamily:'var(--display)',fontSize:13,fontWeight:700,letterSpacing:'0.1em',
+            <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:700,letterSpacing:'0.1em',
                          textTransform:'uppercase',color:'var(--text-dim)',marginBottom:8}}>Combat Log</div>
             <div style={{display:'flex',flexDirection:'column',gap:3,maxHeight:180,overflowY:'auto'}}>
               {(data.log||[]).map((e:any)=>(
-                <div key={e.id} style={{fontSize:13,fontFamily:'var(--mono)',padding:'3px 0',
+                <div key={e.id} style={{fontSize:15,fontFamily:'var(--mono)',padding:'3px 0',
                                         borderBottom:'1px solid rgba(255,255,255,0.04)',
                                         color:e.type==='important'?'var(--gold)':e.type==='danger'?'var(--red)':'var(--text-dim)'}}>
                   <span style={{opacity:0.5,marginRight:6}}>{String(e.time||'').slice(11,16)}</span>
                   {e.message}
                 </div>
               ))}
-              {(data.log||[]).length===0 && <div style={{fontSize:13,color:'var(--text-dim)',fontFamily:'var(--mono)'}}>No entries yet.</div>}
+              {(data.log||[]).length===0 && <div style={{fontSize:15,color:'var(--text-dim)',fontFamily:'var(--mono)'}}>No entries yet.</div>}
             </div>
           </div>
 
@@ -2288,7 +2520,224 @@ function RV({ val, lbl, col }: { val:string; lbl:string; col:string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
       <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:col}}>{val}</div>
-      <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-dim)'}}>{lbl}</div>
+      <div style={{fontSize:14,textTransform:'uppercase',letterSpacing:'0.1em',color:'var(--text-dim)'}}>{lbl}</div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHIP STAT BLOCK + SHIPS VIEW
+// ─────────────────────────────────────────────────────────────────────────────
+function ShipStatBlock({ shipKey }: { shipKey: string }) {
+  const s = SHIP_STATS[shipKey]
+  if (!s) return null
+  const catColor = (c:string) => {
+    if (c==='PLAYER SHIP') return 'var(--gold)'
+    if (c==='CAPITAL SHIP') return '#ef5350'
+    if (c==='REBEL VESSEL') return '#66bb6a'
+    if (c==='STARFIGHTER') return '#4fc3f7'
+    if (c==='BOMBER') return '#ff7043'
+    if (c==='ASSAULT GUNSHIP') return '#ff9800'
+    if (c==='TRANSPORT') return '#90a4ae'
+    if (c==='PATROL / CORVETTE') return '#ce93d8'
+    return '#78909c'
+  }
+  const col = catColor(s.category)
+  return (
+    <div style={{padding:'20px 24px',overflowY:'auto',height:'100%',fontFamily:'var(--body)'}}>
+      {/* Header */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontFamily:'var(--mono)',fontSize:14,color:col,textTransform:'uppercase',
+                     letterSpacing:'0.12em',marginBottom:4}}>{s.category}</div>
+        <div style={{fontFamily:'var(--display)',fontSize:26,fontWeight:700,color:'var(--text-bright)',
+                     lineHeight:1.1,marginBottom:2}}>{s.name}</div>
+        <div style={{fontSize:16,color:'var(--text-dim)'}}>{s.manufacturer} — {s.model}</div>
+      </div>
+
+      {/* Core stats bar */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:6,marginBottom:16}}>
+        {([['SIL',s.silhouette],['SPD',s.speed],['HND',s.handling],['DEF F',s.defFore],
+           ['DEF A',s.defAft],['ARMR',s.armour],['HT/SST',`${s.hullTrauma}/${s.systemStrain}`]] as [string,any][]).map(([lbl,val])=>(
+          <div key={lbl} style={{background:'var(--panel2)',border:'1px solid var(--border2)',
+                                  borderRadius:4,padding:'8px 6px',textAlign:'center'}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-dim)',
+                         textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:3}}>{lbl}</div>
+            <div style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,
+                         color:lbl==='HND'&&s.handling<0?'#ef5350':'var(--text-bright)'}}>{val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info row */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:16,
+                   background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:12}}>
+        <div><span style={{color:'var(--text-dim)',fontSize:14}}>Hyperdrive: </span>
+             <span style={{fontSize:14,color:'var(--text-bright)'}}>{s.hyperdrive}</span></div>
+        <div><span style={{color:'var(--text-dim)',fontSize:14}}>Consumables: </span>
+             <span style={{fontSize:14,color:'var(--text-bright)'}}>{s.consumables}</span></div>
+        <div><span style={{color:'var(--text-dim)',fontSize:14}}>Complement: </span>
+             <span style={{fontSize:14,color:'var(--text-bright)'}}>{s.complement}</span></div>
+      </div>
+
+      {/* Weapons */}
+      {s.weapons.length > 0 && (
+        <div style={{marginBottom:16}}>
+          <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
+                       textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>Weapons</div>
+          <div style={{border:'1px solid var(--border)',borderRadius:6,overflow:'hidden'}}>
+            <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 2fr',
+                         background:'var(--panel2)',padding:'6px 10px',
+                         fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+                         textTransform:'uppercase',letterSpacing:'0.08em',gap:8}}>
+              <span>Name</span><span>Fire Arc</span><span>Dmg</span><span>Crit</span><span>Range</span><span>Qualities</span>
+            </div>
+            {s.weapons.map((w,i)=>(
+              <div key={i} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 2fr',
+                                   padding:'7px 10px',gap:8,
+                                   background:i%2===0?'transparent':'rgba(255,255,255,0.02)',
+                                   borderTop:'1px solid var(--border)',fontSize:15,color:'var(--text)'}}>
+                <span>{w.name}</span>
+                <span style={{color:'var(--text-dim)'}}>{w.fire}</span>
+                <span style={{color:'#ef5350'}}>{w.damage}</span>
+                <span style={{color:'#E67E22'}}>{w.critical || '—'}</span>
+                <span style={{color:'var(--text-dim)'}}>{w.range}</span>
+                <span style={{color:'var(--text-dim)',fontSize:14}}>{w.qualities || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Special Abilities */}
+      {s.abilities.length > 0 && (
+        <div style={{marginBottom:16}}>
+          <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
+                       textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:8}}>Special Abilities</div>
+          <div style={{display:'flex',flexDirection:'column',gap:6}}>
+            {s.abilities.map((a,i)=>{
+              const [title,...rest] = a.split(':')
+              return (
+                <div key={i} style={{background:'var(--panel)',border:'1px solid var(--border)',
+                                      borderLeft:`3px solid ${col}`,borderRadius:4,padding:'8px 12px',
+                                      fontSize:15}}>
+                  {rest.length>0
+                    ? <><span style={{color:col,fontWeight:600}}>{title}:</span>
+                        <span style={{color:'var(--text-dim)'}}>{rest.join(':')}</span></>
+                    : <span style={{color:'var(--text-dim)'}}>{a}</span>
+                  }
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Description */}
+      <div style={{background:'var(--panel)',border:'1px solid var(--border)',
+                   borderRadius:6,padding:'12px 14px',fontSize:16,
+                   color:'var(--text-dim)',lineHeight:1.6,fontStyle:'italic'}}>
+        {s.desc}
+      </div>
+    </div>
+  )
+}
+
+function ShipsView() {
+  const [search,     setSearch]     = useState('')
+  const [catFilter,  setCatFilter]  = useState('ALL')
+  const [selectedKey,setSelectedKey]= useState<string|null>(null)
+
+  const filtered = Object.entries(SHIP_STATS).filter(([,ship]) => {
+    const matchCat  = catFilter==='ALL' || ship.category===catFilter
+    const matchText = search==='' || ship.name.toLowerCase().includes(search.toLowerCase()) ||
+                      ship.model.toLowerCase().includes(search.toLowerCase())
+    return matchCat && matchText
+  })
+
+  const catColor = (c:string) => {
+    if (c==='PLAYER SHIP') return 'var(--gold)'
+    if (c==='CAPITAL SHIP') return '#ef5350'
+    if (c==='REBEL VESSEL') return '#66bb6a'
+    if (c==='STARFIGHTER') return '#4fc3f7'
+    if (c==='BOMBER') return '#ff7043'
+    if (c==='ASSAULT GUNSHIP') return '#ff9800'
+    if (c==='TRANSPORT') return '#90a4ae'
+    if (c==='PATROL / CORVETTE') return '#ce93d8'
+    return '#78909c'
+  }
+
+  return (
+    <div style={{display:'flex',height:'100%',overflow:'hidden'}}>
+      {/* Left panel — ship list */}
+      <div style={{width:280,flexShrink:0,borderRight:'1px solid var(--border2)',
+                   display:'flex',flexDirection:'column',background:'var(--bg2)'}}>
+        {/* Search */}
+        <div style={{padding:'12px 12px 8px'}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Search ships…"
+            style={{width:'100%',background:'var(--panel)',border:'1px solid var(--border2)',
+                    borderRadius:4,padding:'7px 10px',fontSize:16,color:'var(--text)',
+                    outline:'none',fontFamily:'var(--body)'}}/>
+        </div>
+        {/* Category filter */}
+        <div style={{padding:'0 12px 10px',display:'flex',flexWrap:'wrap',gap:4}}>
+          {SHIP_CATEGORIES.map(c=>(
+            <button key={c} onClick={()=>setCatFilter(c)}
+              style={{padding:'3px 8px',fontSize:13,borderRadius:3,cursor:'pointer',
+                      fontFamily:'var(--mono)',letterSpacing:'0.05em',
+                      background:catFilter===c?catColor(c):'var(--panel)',
+                      color:catFilter===c?'#000':'var(--text-dim)',
+                      border:`1px solid ${catFilter===c?catColor(c):'var(--border)'}`,
+                      fontWeight:catFilter===c?700:400}}>
+              {c==='ALL'?'All':c}
+            </button>
+          ))}
+        </div>
+        {/* Ship list */}
+        <div style={{flex:1,overflowY:'auto'}}>
+          {filtered.map(([key,ship])=>(
+            <div key={key} onClick={()=>setSelectedKey(key)}
+              style={{padding:'9px 14px',cursor:'pointer',
+                      borderLeft:`3px solid ${selectedKey===key?catColor(ship.category):'transparent'}`,
+                      background:selectedKey===key?'rgba(255,255,255,0.04)':'transparent',
+                      borderBottom:'1px solid var(--border)'}}>
+              <div style={{fontSize:16,color:selectedKey===key?'var(--text-bright)':'var(--text)',
+                           fontWeight:selectedKey===key?600:400,lineHeight:1.2}}>{ship.name}</div>
+              <div style={{marginTop:3,display:'flex',alignItems:'center',gap:6}}>
+                <span style={{fontFamily:'var(--mono)',fontSize:13,padding:'1px 5px',borderRadius:2,
+                              background:`${catColor(ship.category)}20`,color:catColor(ship.category),
+                              border:`1px solid ${catColor(ship.category)}40`}}>
+                  {ship.category}
+                </span>
+                <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)'}}>
+                  SIL {ship.silhouette}
+                </span>
+              </div>
+            </div>
+          ))}
+          {filtered.length===0 && (
+            <div style={{padding:24,textAlign:'center',color:'var(--text-dim)',fontSize:16}}>
+              No ships match your search.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right panel — stat block */}
+      <div style={{flex:1,overflow:'hidden'}}>
+        {selectedKey
+          ? <ShipStatBlock shipKey={selectedKey}/>
+          : (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                         height:'100%',color:'var(--text-dim)',fontFamily:'var(--mono)',gap:12}}>
+              <span style={{fontSize:36,opacity:0.3}}>◉</span>
+              <span style={{fontSize:16,letterSpacing:'0.12em',textTransform:'uppercase'}}>
+                Select a vessel to view its dossier
+              </span>
+            </div>
+          )
+        }
+      </div>
     </div>
   )
 }
@@ -2320,14 +2769,14 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
         {!isShip && (
           <input value={character} onChange={e=>setCharacter(e.target.value)} placeholder="Character name"
             style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 9px',
-                    color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,flex:1,minWidth:90,outline:'none'}}/>
+                    color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,flex:1,minWidth:90,outline:'none'}}/>
         )}
         <input value={roll} onChange={e=>setRoll(e.target.value)} placeholder="d100" type="number" min={1} max={999}
           style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 9px',
-                  color:'var(--text)',fontFamily:'var(--mono)',fontSize:14,width:80,outline:'none'}}/>
+                  color:'var(--text)',fontFamily:'var(--mono)',fontSize:16,width:80,outline:'none'}}/>
         <button onClick={()=>setRoll(String(Math.floor(Math.random()*100)+1))}
           style={{padding:'5px 11px',borderRadius:4,border:'1px solid var(--border2)',background:'var(--panel)',
-                  color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,cursor:'pointer'}}>
+                  color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16,cursor:'pointer'}}>
           Roll
         </button>
         <button disabled={!canAdd} onClick={()=>{
@@ -2339,7 +2788,7 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
                   border:`1px solid ${canAdd?'rgba(212,172,13,0.5)':'var(--border)'}`,
                   background:canAdd?'rgba(212,172,13,0.1)':'var(--panel)',
                   color:canAdd?'var(--gold)':'var(--text-dim)',
-                  fontFamily:'var(--display)',fontSize:14,fontWeight:700,cursor:canAdd?'pointer':'default'}}>
+                  fontFamily:'var(--display)',fontSize:16,fontWeight:700,cursor:canAdd?'pointer':'default'}}>
           Add
         </button>
       </div>
@@ -2351,13 +2800,13 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
           <span style={{color:sevColor(preview.sev),fontFamily:'var(--display)',fontWeight:700,fontSize:15}}>
             {preview.name}{' '}
           </span>
-          <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13}}>{preview.eff}</span>
+          <span style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:15}}>{preview.eff}</span>
         </div>
       )}
 
       {/* Active injuries */}
       {injuries.length === 0 ? (
-        <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14,
+        <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16,
                      textAlign:'center',padding:'12px 0',borderTop:'1px solid var(--border)'}}>
           No active {isShip ? 'critical hits' : 'critical injuries'}
         </div>
@@ -2366,14 +2815,14 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
                                    marginBottom:5,background:'rgba(255,255,255,0.02)',
                                    border:'1px solid var(--border)',borderRadius:5}}>
           {!isShip && (
-            <span style={{color:'var(--gold)',fontFamily:'var(--display)',fontSize:14,
+            <span style={{color:'var(--gold)',fontFamily:'var(--display)',fontSize:16,
                           flexShrink:0,minWidth:70,paddingTop:1}}>{inj.character}</span>
           )}
           <div style={{flex:1,minWidth:0}}>
-            <div style={{color:sevColor(inj.sev),fontFamily:'var(--display)',fontWeight:600,fontSize:14}}>
+            <div style={{color:sevColor(inj.sev),fontFamily:'var(--display)',fontWeight:600,fontSize:16}}>
               {inj.name}
             </div>
-            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13,lineHeight:1.4}}>
+            <div style={{color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:15,lineHeight:1.4}}>
               {inj.eff}
             </div>
           </div>
@@ -2388,7 +2837,7 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
       {/* Reference table toggle */}
       <button onClick={()=>setShowTable(s=>!s)}
         style={{marginTop:8,width:'100%',padding:'5px',borderRadius:4,border:'1px solid var(--border)',
-                background:'none',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:13,cursor:'pointer'}}>
+                background:'none',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:15,cursor:'pointer'}}>
         {showTable ? 'Hide' : 'Show'} Reference Table
       </button>
       {showTable && (
@@ -2397,15 +2846,15 @@ function CritInjuryCard({ title, injuries, table, isShip, col, onAdd, onRemove }
             <div key={i} style={{display:'flex',gap:8,padding:'4px 9px',alignItems:'baseline',
                                   borderBottom:i<table.length-1?'1px solid rgba(255,255,255,0.04)':'none',
                                   background:i%2===0?'rgba(255,255,255,0.01)':'transparent'}}>
-              <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-dim)',
+              <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
                             minWidth:58,flexShrink:0}}>
                 {row.lo}{row.lo!==row.hi?`–${row.hi}`:''}
               </span>
-              <span style={{fontFamily:'var(--display)',fontWeight:600,fontSize:13,
+              <span style={{fontFamily:'var(--display)',fontWeight:600,fontSize:15,
                             color:sevColor(row.sev),minWidth:130,flexShrink:0}}>
                 {row.name}
               </span>
-              <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text-dim)',flex:1}}>
+              <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',flex:1}}>
                 {row.eff}
               </span>
             </div>
@@ -2454,7 +2903,7 @@ function GMDashboard() {
       {saving && (
         <div style={{position:'fixed',top:60,right:16,background:'rgba(212,172,13,0.15)',
                      border:'1px solid rgba(212,172,13,0.4)',borderRadius:6,padding:'6px 12px',
-                     fontSize:14,color:'var(--gold)',fontFamily:'var(--mono)',zIndex:99}}>
+                     fontSize:16,color:'var(--gold)',fontFamily:'var(--mono)',zIndex:99}}>
           Saving…
         </div>
       )}
@@ -2470,7 +2919,7 @@ function GMDashboard() {
                 <div key={i} onClick={()=>upd('heatLevel',state.heatLevel===i+1?i:i+1)}
                   style={{width:26,height:26,borderRadius:4,border:'1px solid var(--border2)',cursor:'pointer',
                           background:bg,display:'flex',alignItems:'center',justifyContent:'center',
-                          fontFamily:'var(--mono)',fontSize:13,color:on?'white':'transparent',
+                          fontFamily:'var(--mono)',fontSize:15,color:on?'white':'transparent',
                           boxShadow:on?`0 0 6px ${i>=7?'rgba(192,57,43,0.4)':'rgba(230,126,34,0.4)'}`:''}}>{i+1}</div>
               )
             })}
@@ -2478,12 +2927,12 @@ function GMDashboard() {
           {[['1–2','Cold — Normal operations'],['3–4','Warm — Checkpoints tighten'],
             ['5–6','Hot — Renaus hunting'],['7–8','Burning — ISB active'],['9–10','Inferno — Full manhunt']].map(([r,e])=>(
             <div key={r} style={{display:'flex',gap:8,marginBottom:5,alignItems:'center'}}>
-              <span style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--red)',minWidth:32}}>{r}</span>
-              <span style={{fontSize:14,color:'var(--text-dim)'}}>{e}</span>
+              <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--red)',minWidth:32}}>{r}</span>
+              <span style={{fontSize:16,color:'var(--text-dim)'}}>{e}</span>
             </div>
           ))}
           <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)'}}>
-            <div style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,letterSpacing:'0.08em',
+            <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,letterSpacing:'0.08em',
                          textTransform:'uppercase',color:'var(--gold)',marginBottom:8}}>Renaus Track</div>
             <div style={{display:'flex',gap:6}}>
               {Array.from({length:5}).map((_,i)=>(
@@ -2491,11 +2940,11 @@ function GMDashboard() {
                   style={{width:34,height:34,borderRadius:4,border:'1px solid var(--border2)',cursor:'pointer',
                           background:i<state.renausTrack?'#FF9800':'rgba(255,255,255,0.04)',
                           display:'flex',alignItems:'center',justifyContent:'center',
-                          fontSize:13,fontFamily:'var(--mono)',color:i<state.renausTrack?'white':'transparent',
+                          fontSize:15,fontFamily:'var(--mono)',color:i<state.renausTrack?'white':'transparent',
                           boxShadow:i<state.renausTrack?'0 0 6px rgba(255,152,0,0.4)':''}}>□{i+1}</div>
               ))}
             </div>
-            <div style={{fontSize:13,color:'var(--text-dim)',fontFamily:'var(--mono)',marginTop:6,lineHeight:1.6}}>
+            <div style={{fontSize:15,color:'var(--text-dim)',fontFamily:'var(--mono)',marginTop:6,lineHeight:1.6}}>
               □3 = Active hunt  □4 = Profile known  □5 = Full manhunt
             </div>
           </div>
@@ -2526,9 +2975,9 @@ function GMDashboard() {
             const col=d>=3?'var(--green-bright)':d<=-3?'var(--red)':'var(--gold)'
             return (
               <div style={{background:'var(--bg3)',border:`1px solid ${col}40`,borderRadius:6,padding:10,marginTop:4}}>
-                <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:4,
+                <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:4,
                              textTransform:'uppercase',letterSpacing:'0.08em'}}>Act III Outcome</div>
-                <div style={{fontSize:14,color:col,lineHeight:1.5}}>{txt}</div>
+                <div style={{fontSize:16,color:col,lineHeight:1.5}}>{txt}</div>
               </div>
             )
           })()}
@@ -2540,7 +2989,7 @@ function GMDashboard() {
             <div style={{fontFamily:'var(--display)',fontSize:54,fontWeight:700,color:'var(--gold)',lineHeight:1}}>
               {duty}
             </div>
-            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',marginTop:3}}>
+            <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',marginTop:3}}>
               / 100 threshold
             </div>
             <div style={{background:'rgba(255,255,255,0.06)',borderRadius:4,height:5,margin:'8px 0 4px',overflow:'hidden'}}>
@@ -2551,7 +3000,7 @@ function GMDashboard() {
             {dutyThresholdMet && (
               <div style={{marginTop:6,padding:'4px 10px',background:'rgba(39,174,96,0.15)',
                            border:'1px solid var(--green-bright)',borderRadius:4,display:'inline-block',
-                           color:'var(--green-bright)',fontFamily:'var(--mono)',fontSize:13,
+                           color:'var(--green-bright)',fontFamily:'var(--mono)',fontSize:15,
                            fontWeight:700,letterSpacing:'0.1em'}}>
                 ✓ THRESHOLD MET
               </div>
@@ -2561,7 +3010,7 @@ function GMDashboard() {
           <div style={{display:'flex',gap:5,justifyContent:'center',flexWrap:'wrap',marginBottom:10}}>
             {([1,5,10,-1,-5] as number[]).map(n=>(
               <button key={n} onClick={()=>upd('duty',Math.max(0,duty+n))}
-                style={{padding:'4px 10px',borderRadius:4,fontFamily:'var(--mono)',fontSize:14,cursor:'pointer',
+                style={{padding:'4px 10px',borderRadius:4,fontFamily:'var(--mono)',fontSize:16,cursor:'pointer',
                         border:`1px solid ${n>0?'rgba(212,172,13,0.4)':'rgba(192,57,43,0.4)'}`,
                         background:n>0?'rgba(212,172,13,0.08)':'rgba(192,57,43,0.08)',
                         color:n>0?'var(--gold)':'var(--red)'}}>
@@ -2583,7 +3032,7 @@ function GMDashboard() {
           <div style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:5,
                        padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div>
-              <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
                            textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:2}}>Current Tier</div>
               <div style={{fontFamily:'var(--display)',fontSize:30,fontWeight:700,color:'var(--text-bright)',lineHeight:1}}>
                 {tier}
@@ -2599,7 +3048,7 @@ function GMDashboard() {
         {/* ── GM Notes ── */}
         <GmCard title={`GM Notes — Session ${state.session ?? 1}`} col={2}>
           <div style={{display:'flex',gap:6,marginBottom:8,alignItems:'center'}}>
-            <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>Session</div>
+            <div style={{fontSize:15,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>Session</div>
             <SBtn onClick={()=>upd('session',Math.max(1,(state.session??1)-1))}>−</SBtn>
             <div style={{fontFamily:'var(--display)',fontSize:21,fontWeight:700,color:'var(--gold)',minWidth:24,textAlign:'center'}}>
               {state.session ?? 1}
@@ -2690,7 +3139,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                    letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:6}}>
         Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
       </div>
-      <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
+      <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',
                    letterSpacing:'0.12em',marginBottom:32}}>SECURE ACCESS TERMINAL</div>
 
       {/* Mode toggle */}
@@ -2698,7 +3147,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                    border:'1px solid var(--border)',borderRadius:'8px 8px 0 0',overflow:'hidden'}}>
         {(['login','signup'] as const).map(m => (
           <button key={m} onClick={()=>switchMode(m)} type="button"
-            style={{flex:1,padding:'9px 0',fontFamily:'var(--mono)',fontSize:14,fontWeight:600,
+            style={{flex:1,padding:'9px 0',fontFamily:'var(--mono)',fontSize:16,fontWeight:600,
                     letterSpacing:'0.1em',textTransform:'uppercase',border:'none',cursor:'pointer',
                     background: mode===m ? 'var(--panel)' : 'transparent',
                     color: mode===m ? 'var(--gold)' : 'var(--text-dim)',
@@ -2713,7 +3162,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                 borderRadius:'0 0 10px 10px',padding:'24px 32px 28px',width:320,
                 display:'flex',flexDirection:'column',gap:16}}>
         <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',
                        letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Username</div>
           <input value={username} onChange={e=>setUsername(e.target.value)}
             autoFocus autoComplete="username"
@@ -2722,7 +3171,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                     outline:'none',boxSizing:'border-box'}}/>
         </div>
         <div>
-          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',
                        letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Password</div>
           <input type="password" value={password} onChange={e=>setPassword(e.target.value)}
             autoComplete={mode==='login' ? 'current-password' : 'new-password'}
@@ -2732,7 +3181,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
         </div>
         {mode === 'signup' && (
           <div>
-            <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+            <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',
                          letterSpacing:'0.1em',textTransform:'uppercase',marginBottom:6}}>Confirm Password</div>
             <input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)}
               autoComplete="new-password"
@@ -2742,7 +3191,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
           </div>
         )}
         {mode === 'signup' && (
-          <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+          <div style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',
                        lineHeight:1.6,padding:'6px 8px',background:'rgba(255,255,255,0.03)',
                        borderRadius:5,border:'1px solid var(--border)'}}>
             New accounts have <span style={{color:'var(--text)'}}>player access</span> — galaxy map &amp; your character only.
@@ -2750,7 +3199,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
           </div>
         )}
         {error && (
-          <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--red)',
+          <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--red)',
                        background:'rgba(192,57,43,0.1)',border:'1px solid rgba(192,57,43,0.3)',
                        borderRadius:5,padding:'7px 10px'}}>{error}</div>
         )}
@@ -2803,13 +3252,13 @@ function PlayerAccountsCard() {
     setUsers(u=>u.map((x:any)=>x.id===userId?{...x,character_id:characterId}:x))
   }
 
-  if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:14}}>Loading…</div>
+  if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16}}>Loading…</div>
 
   return (
     <div>
       {/* Existing users */}
       {users.filter((u:any)=>u.role==='player').length===0 && (
-        <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
       )}
       {users.filter((u:any)=>u.role==='player').map((u:any) => (
         <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',
@@ -2817,7 +3266,7 @@ function PlayerAccountsCard() {
           <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
           <select value={u.character_id||''} onChange={e=>linkChar(u.id,e.target.value)}
             style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}>
+                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}>
             <option value=''>— no character —</option>
             {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -2830,22 +3279,22 @@ function PlayerAccountsCard() {
       <div style={{marginTop:14,display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
         <input placeholder="username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}
           style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}/>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}/>
         <input placeholder="password" type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
           style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}/>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}/>
         <select value={form.characterId} onChange={e=>setForm(f=>({...f,characterId:e.target.value}))}
           style={{flex:'1 1 110px',background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:14}}>
+                  padding:'6px 8px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}>
           <option value=''>— no character —</option>
           {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <button onClick={createUser}
           style={{padding:'6px 14px',borderRadius:4,border:'1px solid rgba(212,172,13,0.4)',
                   background:'rgba(212,172,13,0.1)',color:'var(--gold)',fontFamily:'var(--display)',
-                  fontSize:14,fontWeight:700,letterSpacing:'0.08em',cursor:'pointer'}}>Add Player</button>
+                  fontSize:16,fontWeight:700,letterSpacing:'0.08em',cursor:'pointer'}}>Add Player</button>
       </div>
-      {error && <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:14,color:'var(--red)'}}>{error}</div>}
+      {error && <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:16,color:'var(--red)'}}>{error}</div>}
     </div>
   )
 }
@@ -2902,6 +3351,7 @@ export default function App() {
     {id:'chars',       label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false},
     {id:'initiative',  label:'Initiative',   icon:'⚡', gmOnly:true},
     {id:'adversaries', label:'Adversaries',  icon:'⚔',  gmOnly:true},
+    {id:'ships',       label:'Ships',        icon:'◉',  gmOnly:true},
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 
@@ -2958,11 +3408,11 @@ export default function App() {
                 <div style={{width:14,height:14,borderRadius:'50%',background:'white',position:'absolute',
                              top:2,transition:'left 0.2s',left:showHidden?18:2}}/>
               </div>
-              <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>Show Hidden</span>
+              <span style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)'}}>Show Hidden</span>
             </div>
           )}
           {!isMobile && (
-            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:5,fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)'}}>
               <span>HEAT</span>
               {Array.from({length:10}).map((_,i)=>(
                 <div key={i} style={{width:8,height:8,borderRadius:1,
@@ -2973,7 +3423,7 @@ export default function App() {
             </div>
           )}
           {!isMobile && (
-            <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)',
+            <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',
                          background:'var(--panel)',border:'1px solid var(--border)',
                          borderRadius:4,padding:'3px 8px'}}>
               Session {topSession}
@@ -2981,15 +3431,15 @@ export default function App() {
           )}
           {/* User badge + logout */}
           <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>{auth.username}</span>
-            <span style={{fontFamily:'var(--mono)',fontSize:13,borderRadius:3,padding:'2px 6px',
+            <span style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)'}}>{auth.username}</span>
+            <span style={{fontFamily:'var(--mono)',fontSize:15,borderRadius:3,padding:'2px 6px',
                           background:isGm?'rgba(212,172,13,0.1)':'rgba(74,144,226,0.1)',
                           border:`1px solid ${isGm?'rgba(212,172,13,0.3)':'rgba(74,144,226,0.3)'}`,
                           color:isGm?'var(--gold)':'#4a90e2'}}>{isGm?'GM':'PLAYER'}</span>
             <button onClick={logout}
               style={{padding:'3px 10px',borderRadius:4,border:'1px solid var(--border)',
                       background:'var(--panel)',color:'var(--text-dim)',fontFamily:'var(--display)',
-                      fontSize:14,fontWeight:600,letterSpacing:'0.06em',cursor:'pointer'}}>Sign Out</button>
+                      fontSize:16,fontWeight:600,letterSpacing:'0.06em',cursor:'pointer'}}>Sign Out</button>
           </div>
         </div>
       </div>
@@ -3006,6 +3456,7 @@ export default function App() {
         {ready && tab==='gm'         && <div style={{height:'100%',overflowY:'auto'}}><GMDashboard/></div>}
         {ready && tab==='galaxy'     && <GalaxyMap showHidden={isGm && showHidden} isGm={!!isGm}/>}
         {ready && tab==='adversaries'&& <AdversariesView/>}
+        {ready && tab==='ships'      && <ShipsView/>}
         {ready && tab==='chars'      && <CharactersView isGm={!!isGm} userId={auth.id||''}/>}
         {ready && tab==='initiative' && <InitiativeTracker/>}
       </div>
@@ -3023,7 +3474,7 @@ export default function App() {
                       borderTop:tab===t.id?'2px solid var(--gold)':'2px solid transparent',
                       color:tab===t.id?'var(--gold)':'var(--text-dim)'}}>
               <span style={{fontSize:21}}>{t.icon}</span>
-              <span style={{fontFamily:'var(--display)',fontSize:12,fontWeight:600,
+              <span style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,
                             letterSpacing:'0.06em',textTransform:'uppercase'}}>{t.label}</span>
             </button>
           ))}
