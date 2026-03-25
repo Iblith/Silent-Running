@@ -258,7 +258,9 @@ export default function DatapadPage() {
                         padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',
                         fontSize:15,outline:'none',resize:'vertical',lineHeight:1.6}}/>
               <div style={{display:'flex',justifyContent:'flex-end'}}>
-                <Btn variant="primary" onClick={handleCreate} disabled={saving || !newTitle.trim()}>
+                <Btn variant="primary"
+                  onClick={handleCreate}
+                  style={saving || !newTitle.trim() ? {opacity:0.4,pointerEvents:'none'} : {}}>
                   {saving ? 'Saving…' : 'Create (Hidden)'}
                 </Btn>
               </div>
