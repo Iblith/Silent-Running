@@ -284,11 +284,12 @@ function GalaxyMap({ showHidden, isGm, onToggleHidden }: { showHidden: boolean; 
 
   useEffect(() => {
     const c = canvasRef.current; if (!c) return
-    const parent = c.parentElement!
+    const canvas: HTMLCanvasElement = c
+    const parent = canvas.parentElement!
 
     function doResize() {
-      c.width  = parent.clientWidth
-      c.height = parent.clientHeight
+      canvas.width  = parent.clientWidth
+      canvas.height = parent.clientHeight
       draw()
     }
 
