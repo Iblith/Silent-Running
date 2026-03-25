@@ -137,9 +137,8 @@ export default function DatapadPage() {
                 style={{
                   display:'block',width:'100%',textAlign:'left',padding:'12px 14px',
                   background: isActive ? 'rgba(212,172,13,0.08)' : 'transparent',
+                  borderTop:'none',borderRight:'none',
                   borderBottom:'1px solid var(--border)',
-                  borderLeft: isActive ? '3px solid var(--gold)' : '3px solid transparent',
-                  border:'none',borderBottom:'1px solid var(--border)',
                   borderLeft: isActive ? '3px solid var(--gold)' : '3px solid transparent',
                   cursor:'pointer',outline:'none',
                 }}>
