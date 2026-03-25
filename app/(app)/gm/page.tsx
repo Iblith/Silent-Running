@@ -9,11 +9,14 @@ import { INITIAL_CAMPAIGN, CREW_CRIT, SHIP_CRIT } from '@/lib/gameData'
 // PLAYER ACCOUNTS CARD
 // ─────────────────────────────────────────────────────────────────────────────
 function PlayerAccountsCard() {
-  const [users,   setUsers]   = useState<any[]>([])
-  const [chars,   setChars]   = useState<any[]>([])
-  const [form,    setForm]    = useState({username:'',password:'',characterId:''})
-  const [error,   setError]   = useState('')
-  const [loading, setLoading] = useState(true)
+  const [users,    setUsers]    = useState<any[]>([])
+  const [chars,    setChars]    = useState<any[]>([])
+  const [form,     setForm]     = useState({username:'',password:'',characterId:''})
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(true)
+  // pending char assignments: userId -> characterId (string)
+  const [pending,  setPending]  = useState<Record<string,string>>({})
+  const [saving,   setSaving]   = useState<Record<string,boolean>>({})
 
   useEffect(() => {
     Promise.all([api('/api/auth/users'), api('/api/characters')])
@@ -35,11 +38,19 @@ function PlayerAccountsCard() {
   async function deleteUser(id: string) {
     await api(`/api/auth/users/${id}`,'DELETE')
     setUsers(u=>u.filter((x:any)=>x.id!==id))
+    setPending(p=>{ const n={...p}; delete n[id]; return n })
   }
 
-  async function linkChar(userId: string, characterId: string) {
-    await api(`/api/auth/users/${userId}`,'PATCH',{characterId})
-    setUsers(u=>u.map((x:any)=>x.id===userId?{...x,character_id:characterId}:x))
+  async function confirmLink(userId: string) {
+    const characterId = pending[userId] ?? ''
+    setSaving(s=>({...s,[userId]:true}))
+    try {
+      await api(`/api/auth/users/${userId}`,'PATCH',{characterId})
+      setUsers(u=>u.map((x:any)=>x.id===userId?{...x,character_id:characterId}:x))
+      setPending(p=>{ const n={...p}; delete n[userId]; return n })
+    } finally {
+      setSaving(s=>({...s,[userId]:false}))
+    }
   }
 
   if (loading) return <div style={{padding:12,color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:16}}>Loading…</div>
@@ -49,20 +60,35 @@ function PlayerAccountsCard() {
       {users.filter((u:any)=>u.role==='player').length===0 && (
         <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',marginBottom:12}}>No player accounts yet.</div>
       )}
-      {users.filter((u:any)=>u.role==='player').map((u:any) => (
-        <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',
-                                borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-          <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
-          <select value={u.character_id||''} onChange={e=>linkChar(u.id,e.target.value)}
-            style={{flex:1,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,
-                    padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}>
-            <option value=''>— no character —</option>
-            {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <button onClick={()=>deleteUser(u.id)}
-            style={{background:'none',border:'none',color:'var(--red)',fontSize:17,cursor:'pointer',flexShrink:0}}>×</button>
-        </div>
-      ))}
+      {users.filter((u:any)=>u.role==='player').map((u:any) => {
+        const hasPending = u.id in pending && pending[u.id] !== (u.character_id||'')
+        const selectVal  = u.id in pending ? pending[u.id] : (u.character_id||'')
+        return (
+          <div key={u.id} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',
+                                  borderBottom:'1px solid rgba(255,255,255,0.05)',flexWrap:'wrap'}}>
+            <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-bright)',flex:'0 0 100px'}}>{u.username}</span>
+            <select value={selectVal}
+              onChange={e=>setPending(p=>({...p,[u.id]:e.target.value}))}
+              style={{flex:1,minWidth:120,background:'var(--bg3)',
+                      border:`1px solid ${hasPending ? 'rgba(212,172,13,0.5)' : 'var(--border)'}`,
+                      borderRadius:4,padding:'4px 6px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:16}}>
+              <option value=''>— no character —</option>
+              {chars.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            {hasPending && (
+              <button onClick={()=>confirmLink(u.id)} disabled={saving[u.id]}
+                style={{padding:'4px 12px',borderRadius:4,border:'1px solid rgba(212,172,13,0.5)',
+                        background:'rgba(212,172,13,0.12)',color:'var(--gold)',fontFamily:'var(--display)',
+                        fontSize:14,fontWeight:700,letterSpacing:'0.06em',cursor:'pointer',
+                        opacity:saving[u.id]?0.5:1,flexShrink:0}}>
+                {saving[u.id] ? '…' : 'Confirm'}
+              </button>
+            )}
+            <button onClick={()=>deleteUser(u.id)}
+              style={{background:'none',border:'none',color:'var(--red)',fontSize:17,cursor:'pointer',flexShrink:0}}>×</button>
+          </div>
+        )
+      })}
       <div style={{marginTop:14,display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
         <input placeholder="username" value={form.username} onChange={e=>setForm(f=>({...f,username:e.target.value}))}
           style={{flex:'1 1 90px',minWidth:80,background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,

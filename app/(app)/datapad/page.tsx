@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { api, Btn } from '@/lib/ui'
+import { api, Btn, useIsMobile } from '@/lib/ui'
 
 interface Datapad {
   id: string
@@ -16,6 +16,7 @@ interface Datapad {
 export default function DatapadPage() {
   const { user } = useAuth()
   const isGm = user?.role === 'gm'
+  const isMobile = useIsMobile()
 
   const [pads,     setPads]     = useState<Datapad[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -92,17 +93,28 @@ export default function DatapadPage() {
     fontSize:15,outline:'none',width:'100%',boxSizing:'border-box',
   }
 
+  // On mobile: show detail pane when a pad is selected or composing
+  const mobileShowDetail = isMobile && (!!selected || composing)
+  const mobileShowList   = !isMobile || !mobileShowDetail
+
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column',background:'var(--bg)'}}>
 
       {/* ── Top bar ── */}
       <div style={{flexShrink:0,padding:'12px 20px',borderBottom:'1px solid var(--border)',
                    display:'flex',alignItems:'center',gap:12,background:'var(--panel)'}}>
+        {isMobile && mobileShowDetail && (
+          <button onClick={()=>{ setSelected(null); setComposing(false) }}
+            style={{background:'none',border:'none',color:'var(--gold)',fontSize:20,
+                    cursor:'pointer',padding:'0 4px',lineHeight:1,flexShrink:0}}>
+            ‹
+          </button>
+        )}
         <span style={{fontFamily:'var(--display)',fontSize:20,fontWeight:700,
                       color:'var(--text-bright)',letterSpacing:'0.1em',textTransform:'uppercase'}}>
-          Datapads
+          {isMobile && mobileShowDetail && activePad ? activePad.title : 'Datapads'}
         </span>
-        {isGm && !composing && (
+        {isGm && !composing && (!isMobile || !mobileShowDetail) && (
           <Btn variant="primary" onClick={()=>{ setComposing(true); setSelected(null) }}>
             + Compose
           </Btn>
@@ -116,8 +128,13 @@ export default function DatapadPage() {
       <div style={{flex:1,display:'flex',overflow:'hidden'}}>
 
         {/* ── Inbox list ── */}
-        <div style={{width:300,flexShrink:0,borderRight:'1px solid var(--border)',
-                     overflowY:'auto',display:'flex',flexDirection:'column'}}>
+        {mobileShowList && (
+        <div style={{
+          width: isMobile ? '100%' : 300,
+          flexShrink:0,
+          borderRight: isMobile ? 'none' : '1px solid var(--border)',
+          overflowY:'auto',display:'flex',flexDirection:'column',
+        }}>
           {loading && (
             <div style={{padding:24,textAlign:'center',fontFamily:'var(--mono)',
                          fontSize:14,color:'var(--text-dim)'}}>Loading…</div>
@@ -135,7 +152,8 @@ export default function DatapadPage() {
             return (
               <button key={pad.id} onClick={()=>selectPad(pad.id)}
                 style={{
-                  display:'block',width:'100%',textAlign:'left',padding:'12px 14px',
+                  display:'block',width:'100%',textAlign:'left',
+                  padding: isMobile ? '14px 16px' : '12px 14px',
                   background: isActive ? 'rgba(212,172,13,0.08)' : 'transparent',
                   borderTop:'none',borderRight:'none',
                   borderBottom:'1px solid var(--border)',
@@ -149,11 +167,14 @@ export default function DatapadPage() {
                       background: revealed ? '#66bb6a' : 'rgba(255,255,255,0.2)',
                     }}/>
                   )}
-                  <span style={{fontFamily:'var(--display)',fontSize:14,fontWeight:700,
+                  <span style={{fontFamily:'var(--display)',fontSize: isMobile ? 15 : 14,fontWeight:700,
                                 color: isActive ? 'var(--gold)' : 'var(--text-bright)',
                                 flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
                     {pad.title || 'Untitled'}
                   </span>
+                  {isMobile && (
+                    <span style={{color:'var(--text-dim)',fontSize:18,flexShrink:0}}>›</span>
+                  )}
                 </div>
                 {preview && (
                   <div style={{fontFamily:'var(--body)',fontSize:13,color:'var(--text-dim)',
@@ -170,9 +191,11 @@ export default function DatapadPage() {
             )
           })}
         </div>
+        )}
 
         {/* ── Detail / Compose pane ── */}
-        <div style={{flex:1,overflowY:'auto',padding:24}}>
+        {(!isMobile || mobileShowDetail) && (
+        <div style={{flex:1,overflowY:'auto',padding: isMobile ? '16px' : '24px'}}>
 
           {/* Compose form */}
           {composing && isGm && (
@@ -284,6 +307,8 @@ export default function DatapadPage() {
           })()}
 
         </div>
+        )}
+
       </div>
     </div>
   )
