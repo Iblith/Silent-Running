@@ -80,10 +80,13 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
   const [newTalent, setNewTalent] = useState({name:'',desc:''})
   const [newWeapon, setNewWeapon] = useState({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
+  const [newItem, setNewItem]     = useState({name:'',description:'',encumbrance:0})
 
-  const derivedWT   = (char.characteristics?.Brawn||2) + (char.woundThreshold||12)
-  const derivedST   = (char.characteristics?.Willpower||2) + (char.strainThreshold||12)
+  const derivedWT   = char.woundThreshold||12
+  const derivedST   = char.strainThreshold||12
   const derivedSoak = (char.characteristics?.Brawn||2) + (char.soak||0)
+  const encumbranceCapacity = 5 + (char.characteristics?.Brawn||2)
+  const encumbranceCurrent  = (char.inventory||[]).reduce((sum:number, item:any) => sum + (Number(item.encumbrance)||0), 0)
 
   const inp = (style?:any) => ({
     background:'none',border:'none',borderBottom:'1px solid var(--border)',
@@ -131,7 +134,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',flexShrink:0}}>
             <div>
-              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>XP SPENT</div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>CURRENT XP</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.xp||0}</div>
                 <SBtn onClick={()=>update('xp',(char.xp||0)+5)}>+</SBtn>
@@ -145,6 +148,11 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                 <SBtn onClick={()=>update('duty',(char.duty||0)+1)}>+</SBtn>
                 <SBtn onClick={()=>update('duty',Math.max(0,(char.duty||0)-1))}>−</SBtn>
               </div>
+              <input value={char.dutyType||''} onChange={e=>update('dutyType',e.target.value)}
+                placeholder="Duty type"
+                style={{marginTop:4,background:'none',border:'none',borderBottom:'1px solid var(--border)',
+                        color:'var(--text-dim)',fontFamily:'var(--body)',fontSize:14,padding:'2px 0',
+                        outline:'none',width:'100%',textAlign:'right'}}/>
             </div>
           </div>
         </div>
@@ -200,11 +208,20 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             </div>
             <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
               <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
-                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence</div>
-              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defense||0}</div>
+                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence (Melee)</div>
+              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defenseMelee||0}</div>
               <div style={{display:'flex',gap:4,marginTop:6}}>
-                <SBtn onClick={()=>update('defense',Math.max(0,(char.defense||0)-1))}>−</SBtn>
-                <SBtn onClick={()=>update('defense',(char.defense||0)+1)}>+</SBtn>
+                <SBtn onClick={()=>update('defenseMelee',Math.max(0,(char.defenseMelee||0)-1))}>−</SBtn>
+                <SBtn onClick={()=>update('defenseMelee',(char.defenseMelee||0)+1)}>+</SBtn>
+              </div>
+            </div>
+            <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',
+                           textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:4}}>Defence (Ranged)</div>
+              <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--text-bright)'}}>{char.defenseRanged||0}</div>
+              <div style={{display:'flex',gap:4,marginTop:6}}>
+                <SBtn onClick={()=>update('defenseRanged',Math.max(0,(char.defenseRanged||0)-1))}>−</SBtn>
+                <SBtn onClick={()=>update('defenseRanged',(char.defenseRanged||0)+1)}>+</SBtn>
               </div>
             </div>
           </div>
@@ -344,6 +361,58 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </tr>
             </tbody>
           </table>
+          </div>
+        </CardSection>
+
+        {/* ── Inventory ── */}
+        <CardSection title="Inventory">
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontSize:15,color:'var(--text-dim)'}}>
+              Encumbrance:{' '}
+              <span style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,
+                            color:encumbranceCurrent>encumbranceCapacity?'var(--red)':'var(--text-bright)'}}>
+                {encumbranceCurrent}
+              </span>
+              <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)'}}> / {encumbranceCapacity}</span>
+              <span style={{fontSize:14,color:'var(--text-dim)',marginLeft:8}}>(5 + Brawn)</span>
+            </div>
+          </div>
+          {(char.inventory||[]).map((item:any,i:number)=>(
+            <div key={i} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
+                                  padding:10,display:'flex',gap:10,alignItems:'flex-start',marginBottom:6}}>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+                  <div style={{fontFamily:'var(--display)',fontSize:15,fontWeight:600,color:'var(--text-bright)'}}>{item.name}</div>
+                  <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+                               background:'rgba(255,255,255,0.06)',padding:'1px 6px',borderRadius:3,
+                               border:'1px solid var(--border)'}}>
+                    Enc: {item.encumbrance>=0?'+':''}{item.encumbrance}
+                  </div>
+                </div>
+                {item.description && <div style={{fontSize:15,color:'var(--text-dim)',lineHeight:1.5}}>{item.description}</div>}
+              </div>
+              <button onClick={()=>update('inventory',(char.inventory||[]).filter((_:any,j:number)=>j!==i))}
+                style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
+            </div>
+          ))}
+          <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+            <input value={newItem.name} onChange={e=>setNewItem(t=>({...t,name:e.target.value}))}
+              placeholder="Item name"
+              style={{flex:'1 1 140px',background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
+                      padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
+            <input value={newItem.description} onChange={e=>setNewItem(t=>({...t,description:e.target.value}))}
+              placeholder="Description"
+              style={{flex:'2 1 200px',background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
+                      padding:'8px 10px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none'}}/>
+            <input type="number" value={newItem.encumbrance} onChange={e=>setNewItem(t=>({...t,encumbrance:Number(e.target.value)}))}
+              placeholder="Enc"
+              style={{width:70,background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,
+                      padding:'8px 10px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none'}}/>
+            <Btn variant="primary" onClick={()=>{
+              if(!newItem.name.trim()) return
+              update('inventory',[...(char.inventory||[]),newItem])
+              setNewItem({name:'',description:'',encumbrance:0})
+            }}>Add</Btn>
           </div>
         </CardSection>
 
