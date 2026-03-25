@@ -3137,7 +3137,7 @@ function LoginScreen({ onLogin }: { onLogin: (auth: {id:string,username:string,r
                  background:'var(--bg)',flexDirection:'column',gap:0}}>
       <div style={{fontFamily:'var(--display)',fontSize:25,fontWeight:700,color:'var(--gold)',
                    letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:6}}>
-        Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
+        Star wars FFG: <span style={{color:'var(--red)'}}>Campaign</span> 2
       </div>
       <div style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)',
                    letterSpacing:'0.12em',marginBottom:32}}>SECURE ACCESS TERMINAL</div>
