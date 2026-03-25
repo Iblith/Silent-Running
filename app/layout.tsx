@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Operation: Silent Running',
+  title: 'Star wars FFG: Campagin 2',
   description: 'Campaign management system for Star Wars FFG',
 }
 

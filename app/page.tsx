@@ -44,6 +44,7 @@ const INITIAL_CAMPAIGN = {
   duty:0, tier:1,
   crewCriticals:[] as any[],
   shipCriticals:[] as any[],
+  campaignName:'Operation: Silent Running',
 }
 
 const MISSIONS = [
@@ -2090,7 +2091,63 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
             placeholder="Character notes, backstory, contacts..."/>
         </CardSection>
 
+        {/* ── Critical Injuries Reference ── */}
+        <CritRefTable/>
+
       </div>
+    </div>
+  )
+}
+
+function CritRefTable() {
+  const [open, setOpen] = useState(false)
+  const sevColor = (s:number) => s>=5?'#922B21':s>=4?'#C0392B':s>=3?'var(--red)':s>=2?'#D35400':'#E67E22'
+  const sevLabel = (s:number) => s>=5?'Fatal':s>=4?'Severe':s>=3?'Serious':s>=2?'Major':'Minor'
+  return (
+    <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8,
+                 overflow:'hidden',marginBottom:16}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{width:'100%',padding:'12px 16px',background:'none',border:'none',cursor:'pointer',
+                display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span style={{fontFamily:'var(--mono)',fontSize:16,fontWeight:700,color:'var(--red)',
+                      textTransform:'uppercase',letterSpacing:'0.1em'}}>Critical Injuries Reference Table</span>
+        <span style={{fontFamily:'var(--mono)',fontSize:16,color:'var(--text-dim)'}}>{open?'▲':'▼'}</span>
+      </button>
+      {open && (
+        <div style={{padding:'0 12px 12px',overflowX:'auto'}}>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:15}}>
+            <thead>
+              <tr style={{background:'var(--panel2)'}}>
+                {['Roll','Severity','Result','Effect'].map(h=>(
+                  <th key={h} style={{padding:'6px 10px',textAlign:'left',fontFamily:'var(--mono)',
+                                      fontSize:14,color:'var(--text-dim)',textTransform:'uppercase',
+                                      letterSpacing:'0.08em',borderBottom:'1px solid var(--border2)'}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CREW_CRIT.map((c,i)=>(
+                <tr key={i} style={{borderBottom:'1px solid var(--border)',
+                                    background:i%2===0?'transparent':'rgba(255,255,255,0.015)'}}>
+                  <td style={{padding:'5px 10px',fontFamily:'var(--mono)',fontSize:15,
+                               color:'var(--text-dim)',whiteSpace:'nowrap'}}>
+                    {c.lo===c.hi?c.lo:`${c.lo}–${c.hi}`}
+                  </td>
+                  <td style={{padding:'5px 10px',whiteSpace:'nowrap'}}>
+                    <span style={{fontFamily:'var(--mono)',fontSize:14,color:sevColor(c.sev),
+                                  background:`${sevColor(c.sev)}18`,padding:'2px 7px',borderRadius:3,
+                                  border:`1px solid ${sevColor(c.sev)}40`}}>
+                      {sevLabel(c.sev)}
+                    </span>
+                  </td>
+                  <td style={{padding:'5px 10px',color:'var(--text-bright)',fontWeight:600}}>{c.name}</td>
+                  <td style={{padding:'5px 10px',color:'var(--text-dim)',fontSize:15}}>{c.eff}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -2907,6 +2964,27 @@ function GMDashboard() {
           Saving…
         </div>
       )}
+      {/* ── Campaign Settings ── */}
+      <div style={{maxWidth:1200,margin:'0 auto 16px',background:'var(--panel)',
+                   border:'1px solid var(--border)',borderRadius:8,padding:'14px 18px',
+                   display:'flex',alignItems:'center',gap:16,flexWrap:'wrap'}}>
+        <span style={{fontFamily:'var(--mono)',fontSize:15,color:'var(--text-dim)',
+                      textTransform:'uppercase',letterSpacing:'0.1em',whiteSpace:'nowrap'}}>
+          Campaign Name
+        </span>
+        <input
+          value={state.campaignName||''}
+          onChange={(e:any)=>upd('campaignName',e.target.value)}
+          style={{flex:1,minWidth:220,background:'var(--bg2)',border:'1px solid var(--border2)',
+                  borderRadius:4,padding:'7px 12px',color:'var(--text-bright)',
+                  fontFamily:'var(--display)',fontSize:19,fontWeight:700,
+                  letterSpacing:'0.08em',textTransform:'uppercase',outline:'none'}}
+        />
+        <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>
+          Updates top bar &amp; browser tab
+        </span>
+      </div>
+
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:1200,margin:'0 auto'}}>
 
         {/* ── Heat Track ── */}
@@ -3305,9 +3383,10 @@ function PlayerAccountsCard() {
 export default function App() {
   const [tab, setTab]               = useState('gm')
   const [showHidden, setShowHidden] = useState(false)
-  const [topHeat, setTopHeat]       = useState(0)
-  const [topSession, setTopSession] = useState(1)
-  const [ready, setReady]           = useState(false)
+  const [topHeat, setTopHeat]             = useState(0)
+  const [topSession, setTopSession]       = useState(1)
+  const [topCampaignName, setTopCampaignName] = useState('Operation: Silent Running')
+  const [ready, setReady]                 = useState(false)
   const [auth, setAuth]             = useState<{id:string,username:string,role:string,characterId:string}|null>(null)
   const [authChecked, setAuthChecked] = useState(false)
   const isMobile = useIsMobile()
@@ -3328,15 +3407,18 @@ export default function App() {
   useEffect(() => {
     if (!auth) return
     api('/api/campaign')
-      .then(d => { setTopHeat(d.heatLevel||0); setTopSession(d.session||1); setReady(true) })
+      .then(d => { setTopHeat(d.heatLevel||0); setTopSession(d.session||1); setTopCampaignName(d.campaignName||'Operation: Silent Running'); setReady(true) })
       .catch(() => setReady(true))
   }, [auth])
 
   // Refresh topbar when switching tabs
   useEffect(() => {
     if (!ready) return
-    api('/api/campaign').then(d=>{ setTopHeat(d.heatLevel||0); setTopSession(d.session||1) }).catch(()=>{})
+    api('/api/campaign').then(d=>{ setTopHeat(d.heatLevel||0); setTopSession(d.session||1); setTopCampaignName(d.campaignName||'Operation: Silent Running') }).catch(()=>{})
   }, [tab, ready])
+
+  // Sync document title
+  useEffect(() => { document.title = topCampaignName }, [topCampaignName])
 
   async function logout() {
     await fetch('/api/auth/logout', {method:'POST'}).catch(()=>{})
@@ -3377,7 +3459,7 @@ export default function App() {
         {!isMobile && (
           <div style={{fontFamily:'var(--display)',fontSize:21,fontWeight:700,color:'var(--gold)',
                        letterSpacing:'0.12em',textTransform:'uppercase',marginRight:32,whiteSpace:'nowrap'}}>
-            Operation: <span style={{color:'var(--red)'}}>Silent</span> Running
+            {topCampaignName}
           </div>
         )}
 
