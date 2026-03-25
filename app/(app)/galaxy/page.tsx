@@ -283,13 +283,23 @@ function GalaxyMap({ showHidden, isGm, onToggleHidden }: { showHidden: boolean; 
   useEffect(() => { draw() }, [pan,zoom,selected,hover,showHidden])
 
   useEffect(() => {
-    function resize() {
-      const c=canvasRef.current; if(!c) return
-      const w=c.parentElement!; c.width=w.clientWidth; c.height=w.clientHeight; draw()
+    const c = canvasRef.current; if (!c) return
+    const parent = c.parentElement!
+
+    function doResize() {
+      c.width  = parent.clientWidth
+      c.height = parent.clientHeight
+      draw()
     }
-    resize()
-    window.addEventListener('resize',resize)
-    return () => window.removeEventListener('resize',resize)
+
+    // rAF ensures the browser has finished layout before we measure
+    const raf = requestAnimationFrame(doResize)
+
+    // ResizeObserver catches orientation changes and flex/layout shifts
+    const ro = new ResizeObserver(doResize)
+    ro.observe(parent)
+
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
   }, [])
 
   function nodeAt(wx:number,wy:number) {
