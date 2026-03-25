@@ -73,11 +73,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isGm = user.role === 'gm'
 
   const ALL_TABS = [
-    { path:'/gm',          label:'GM Dashboard', icon:'⚙',  gmOnly:true  },
-    { path:'/galaxy',      label:'Galaxy Map',   icon:'✦',  gmOnly:false },
-    { path:'/characters',  label: isGm ? 'Characters' : 'My Character', icon:'◈', gmOnly:false },
-    { path:'/adversaries', label:'Adversaries',  icon:'⚔',  gmOnly:true  },
-    { path:'/datapad',     label:'Datapads',     icon:'📟', gmOnly:false },
+    { path:'/gm',          label:'GM Dashboard', mobileLabel:'GM',         icon:'⚙',  gmOnly:true  },
+    { path:'/galaxy',      label:'Galaxy Map',   mobileLabel:'Galaxy',     icon:'✦',  gmOnly:false },
+    { path:'/characters',  label: isGm ? 'Characters' : 'My Character', mobileLabel: isGm ? 'Chars' : 'Character', icon:'◈', gmOnly:false },
+    { path:'/adversaries', label:'Adversaries',  mobileLabel:'Adversaries',icon:'⚔',  gmOnly:true  },
+    { path:'/datapad',     label:'Datapads',     mobileLabel:'Datapads',   icon:'📟', gmOnly:false },
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 
@@ -162,14 +162,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                        borderTop:'1px solid rgba(255,255,255,0.14)',zIndex:200}}>
             {TABS.map(t => (
               <Link key={t.path} href={t.path}
-                style={{flex:1,border:'none',background:'none',cursor:'pointer',textDecoration:'none',
+                style={{flex:1,minWidth:0,border:'none',background:'none',cursor:'pointer',textDecoration:'none',
                         display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                        gap:3,padding:'4px 0',
+                        gap:2,padding:'4px 2px',overflow:'hidden',
                         borderTop:isActive(t.path)?'2px solid var(--gold)':'2px solid transparent',
                         color:isActive(t.path)?'var(--gold)':'var(--text-dim)'}}>
-                <span style={{fontSize:21}}>{t.icon}</span>
-                <span style={{fontFamily:'var(--display)',fontSize:14,fontWeight:600,
-                              letterSpacing:'0.06em',textTransform:'uppercase'}}>{t.label}</span>
+                <span style={{fontSize:19}}>{t.icon}</span>
+                <span style={{fontFamily:'var(--display)',fontSize:11,fontWeight:600,
+                              letterSpacing:'0.04em',textTransform:'uppercase',
+                              whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+                              maxWidth:'100%'}}>{t.mobileLabel}</span>
               </Link>
             ))}
           </nav>

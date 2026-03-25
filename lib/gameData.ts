@@ -28,7 +28,7 @@ export const DEFAULT_CHAR = {
   soak:2, defenseMelee:0, defenseRanged:0, forceRating:0, duty:0, dutyType:'', morality:50,
   skills:{...Object.fromEntries(Object.keys(SKILL_CHAR).map(k=>[k,0]))},
   talents:[] as any[], weapons:[] as any[], armour:[] as any[], equipment:[] as any[], inventory:[] as any[],
-  notes:'', xp:0, totalXp:0,
+  notes:'', xp:0, totalXp:0, credits:0,
 }
 
 export const INITIAL_CAMPAIGN = {

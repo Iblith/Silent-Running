@@ -69,6 +69,7 @@ function CritRefTable() {
 // CHARACTER SHEET
 // ─────────────────────────────────────────────────────────────────────────────
 function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }) {
+  const isMobile = useIsMobile()
   const color   = CHAR_COLORS[char.colorIdx] || CHAR_COLORS[0]
   const initials = (char.name||'??').split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()||'??'
 
@@ -80,8 +81,8 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
   const [showOptions, setShowOptions] = useState(false)
   const [newTalent, setNewTalent]     = useState({name:'',desc:''})
-  const [newWeapon, setNewWeapon]     = useState({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
-  const [newArmour, setNewArmour]     = useState({name:'',soak:0,defenseMelee:0,defenseRanged:0})
+  const [newWeapon, setNewWeapon]     = useState({name:'',skill:'',dam:'',crit:'',range:'',qualities:'',encumbrance:0})
+  const [newArmour, setNewArmour]     = useState({name:'',soak:0,defenseMelee:0,defenseRanged:0,encumbrance:0})
   const [newItem, setNewItem]         = useState({name:'',description:'',encumbrance:0})
 
   const derivedWT   = (char.woundThreshold||12) + (char.characteristics?.Brawn||2)
@@ -94,6 +95,8 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
   const derivedRanged = armourRanged
   const encumbranceCapacity = 5 + (char.characteristics?.Brawn||2)
   const encumbranceCurrent  = (char.inventory||[]).reduce((sum:number, item:any) => sum + (Number(item.encumbrance)||0), 0)
+                            + (char.weapons||[]).reduce((sum:number, w:any) => sum + (Number(w.encumbrance)||0), 0)
+                            + (char.armour||[]).reduce((sum:number, a:any) => sum + (Number(a.encumbrance)||0), 0)
 
   const inp = (style?:any) => ({
     background:'none',border:'none',borderBottom:'1px solid var(--border)',
@@ -106,7 +109,7 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
       <div style={{maxWidth:900,margin:'0 auto'}}>
 
         {/* ── Header ── */}
-        <div style={{display:'flex',alignItems:'flex-start',gap:20,marginBottom:24,
+        <div style={{display:'flex',alignItems:'flex-start',gap:20,marginBottom:24,flexWrap:'wrap',
                      padding:20,background:'var(--panel)',border:'1px solid var(--border)',borderRadius:8}}>
           <div style={{width:72,height:72,borderRadius:'50%',display:'flex',alignItems:'center',
                        justifyContent:'center',background:`${color}22`,border:`2px solid ${color}`,flexShrink:0}}>
@@ -139,13 +142,27 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
               </div>
             </div>
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end',flexShrink:0}}>
+          <div style={{display:'flex',flexDirection:'row',gap:16,alignItems:'flex-start',flexWrap:'wrap',flex:1,justifyContent:'flex-end'}}>
             <div>
               <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>CURRENT XP</div>
               <div style={{display:'flex',alignItems:'center',gap:4}}>
                 <div style={{fontFamily:'var(--display)',fontSize:23,fontWeight:700,color:'var(--gold)'}}>{char.xp||0}</div>
                 <SBtn onClick={()=>update('xp',(char.xp||0)+5)}>+</SBtn>
                 <SBtn onClick={()=>update('xp',Math.max(0,(char.xp||0)-5))}>−</SBtn>
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',textAlign:'right',marginBottom:2}}>CREDITS ₡</div>
+              <div style={{display:'flex',alignItems:'center',gap:4}}>
+                <SBtn onClick={()=>update('credits',Math.max(0,(char.credits||0)-100))}>−</SBtn>
+                <input
+                  type="number"
+                  value={char.credits||0}
+                  onChange={e=>update('credits',Math.max(0,Number(e.target.value)))}
+                  style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',
+                          color:'#4FC3F7',fontFamily:'var(--display)',fontSize:20,fontWeight:700,
+                          padding:'2px 0',outline:'none',width:90,textAlign:'right'}}/>
+                <SBtn onClick={()=>update('credits',(char.credits||0)+100)}>+</SBtn>
               </div>
             </div>
             <div>
@@ -334,10 +351,71 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
 
         {/* ── Weapons ── */}
         <CardSection title="Weapons">
+          {isMobile ? (
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {(char.weapons||[]).map((w:any,i:number)=>(
+                <div key={i} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                    <input value={w.name||''} onChange={e=>{const ws=[...char.weapons];ws[i]={...ws[i],name:e.target.value};update('weapons',ws)}}
+                      placeholder="Name"
+                      style={{flex:1,background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text-bright)',fontFamily:'var(--display)',fontSize:16,fontWeight:700,padding:'2px 0',outline:'none'}}/>
+                    <button onClick={()=>update('weapons',(char.weapons||[]).filter((_:any,j:number)=>j!==i))}
+                      style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer',flexShrink:0}}>×</button>
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {([['skill','Skill'],['dam','Dam'],['crit','Crit'],['range','Range']] as [string,string][]).map(([f,l])=>(
+                      <div key={f} style={{display:'flex',flexDirection:'column',gap:2,minWidth:60}}>
+                        <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>{l}</div>
+                        <input value={(w as any)[f]||''} onChange={e=>{const ws=[...char.weapons];ws[i]={...ws[i],[f]:e.target.value};update('weapons',ws)}}
+                          style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,padding:'2px 0',outline:'none',width:'100%'}}/>
+                      </div>
+                    ))}
+                    <div style={{display:'flex',flexDirection:'column',gap:2,flex:1,minWidth:100}}>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Qualities</div>
+                      <input value={w.qualities||''} onChange={e=>{const ws=[...char.weapons];ws[i]={...ws[i],qualities:e.target.value};update('weapons',ws)}}
+                        style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,padding:'2px 0',outline:'none',width:'100%'}}/>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:2,width:52}}>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Enc</div>
+                      <input type="number" value={w.encumbrance??0} onChange={e=>{const ws=[...char.weapons];ws[i]={...ws[i],encumbrance:Number(e.target.value)};update('weapons',ws)}}
+                        style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,padding:'2px 0',outline:'none',width:'100%'}}/>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div style={{background:'var(--panel)',border:'1px dashed var(--border)',borderRadius:6,padding:10}}>
+                <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>Add Weapon</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:6}}>
+                  {([['name','Name'],['skill','Skill'],['dam','Dam'],['crit','Crit'],['range','Range']] as [string,string][]).map(([f,l])=>(
+                    <div key={f} style={{display:'flex',flexDirection:'column',gap:2,flex:'1 1 80px',minWidth:70}}>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>{l}</div>
+                      <input value={(newWeapon as any)[f]||''} onChange={e=>setNewWeapon(w=>({...w,[f]:e.target.value}))}
+                        style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',flexDirection:'column',gap:2,flex:'2 1 130px',minWidth:100}}>
+                    <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Qualities</div>
+                    <input value={newWeapon.qualities||''} onChange={e=>setNewWeapon(w=>({...w,qualities:e.target.value}))}
+                      style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:2,width:70}}>
+                    <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Enc</div>
+                    <input type="number" value={newWeapon.encumbrance} onChange={e=>setNewWeapon(w=>({...w,encumbrance:Number(e.target.value)}))}
+                      style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 7px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:'100%'}}/>
+                  </div>
+                </div>
+                <Btn variant="primary" onClick={()=>{
+                  if(!newWeapon.name.trim()) return
+                  update('weapons',[...(char.weapons||[]),newWeapon])
+                  setNewWeapon({name:'',skill:'',dam:'',crit:'',range:'',qualities:'',encumbrance:0})
+                }}>Add Weapon</Btn>
+              </div>
+            </div>
+          ) : (
           <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as any}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:480}}>
+          <table style={{width:'100%',borderCollapse:'collapse',minWidth:560}}>
             <thead>
-              <tr>{['Name','Skill','Dam','Crit','Range','Qualities',''].map(h=>(
+              <tr>{['Name','Skill','Dam','Crit','Range','Qualities','Enc',''].map(h=>(
                 <th key={h} style={{fontFamily:'var(--mono)',fontSize:14,textTransform:'uppercase',
                                     letterSpacing:'0.08em',color:'var(--text-dim)',padding:'5px 7px',
                                     textAlign:'left',borderBottom:'1px solid var(--border)'}}>{h}</th>
@@ -353,6 +431,11 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                       }} style={{background:'none',border:'none',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
                     </td>
                   ))}
+                  <td style={{padding:'6px 7px',fontSize:15,borderBottom:'1px solid rgba(255,255,255,0.04)',width:52}}>
+                    <input type="number" value={w.encumbrance??0} onChange={e=>{
+                      const ws=[...char.weapons]; ws[i]={...ws[i],encumbrance:Number(e.target.value)}; update('weapons',ws)
+                    }} style={{background:'none',border:'none',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:46}}/>
+                  </td>
                   <td>
                     <button onClick={()=>update('weapons',(char.weapons||[]).filter((_:any,j:number)=>j!==i))}
                       style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
@@ -370,24 +453,78 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                   </td>
                 ))}
                 <td style={{padding:'4px 7px'}}>
+                  <input type="number" value={newWeapon.encumbrance} onChange={e=>setNewWeapon(w=>({...w,encumbrance:Number(e.target.value)}))}
+                    placeholder="0"
+                    style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
+                            padding:'5px 7px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,
+                            outline:'none',width:52}}/>
+                </td>
+                <td style={{padding:'4px 7px'}}>
                   <Btn variant="primary" style={{padding:'6px 10px'}} onClick={()=>{
                     if(!newWeapon.name.trim()) return
                     update('weapons',[...(char.weapons||[]),newWeapon])
-                    setNewWeapon({name:'',skill:'',dam:'',crit:'',range:'',qualities:''})
+                    setNewWeapon({name:'',skill:'',dam:'',crit:'',range:'',qualities:'',encumbrance:0})
                   }}>+</Btn>
                 </td>
               </tr>
             </tbody>
           </table>
           </div>
+          )}
         </CardSection>
 
         {/* ── Armour ── */}
         <CardSection title="Armour">
+          {isMobile ? (
+            <div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {(char.armour||[]).map((a:any,i:number)=>(
+                <div key={i} style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:6,padding:10}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:6}}>
+                    <input value={a.name||''} onChange={e=>{const arr=[...char.armour];arr[i]={...arr[i],name:e.target.value};update('armour',arr)}}
+                      placeholder="Name"
+                      style={{flex:1,background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text-bright)',fontFamily:'var(--display)',fontSize:16,fontWeight:700,padding:'2px 0',outline:'none'}}/>
+                    <button onClick={()=>update('armour',(char.armour||[]).filter((_:any,j:number)=>j!==i))}
+                      style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer',flexShrink:0}}>×</button>
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {([['soak','Soak'],['defenseMelee','Def Melee'],['defenseRanged','Def Ranged'],['encumbrance','Enc']] as [string,string][]).map(([f,l])=>(
+                      <div key={f} style={{display:'flex',flexDirection:'column',gap:2,flex:'1 1 60px',minWidth:55}}>
+                        <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>{l}</div>
+                        <input type="number" value={(a as any)[f]??0} onChange={e=>{const arr=[...char.armour];arr[i]={...arr[i],[f]:Number(e.target.value)};update('armour',arr)}}
+                          style={{background:'none',border:'none',borderBottom:'1px solid var(--border)',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,padding:'2px 0',outline:'none',width:'100%'}}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              <div style={{background:'var(--panel)',border:'1px dashed var(--border)',borderRadius:6,padding:10}}>
+                <div style={{fontSize:13,fontFamily:'var(--mono)',color:'var(--text-dim)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.08em'}}>Add Armour</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:6}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:2,flex:'2 1 140px'}}>
+                    <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Name</div>
+                    <input value={newArmour.name} onChange={e=>setNewArmour(a=>({...a,name:e.target.value}))}
+                      style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 7px',color:'var(--text)',fontFamily:'var(--body)',fontSize:15,outline:'none',width:'100%'}}/>
+                  </div>
+                  {([['soak','Soak'],['defenseMelee','Def M'],['defenseRanged','Def R'],['encumbrance','Enc']] as [string,string][]).map(([f,l])=>(
+                    <div key={f} style={{display:'flex',flexDirection:'column',gap:2,flex:'1 1 55px',minWidth:50}}>
+                      <div style={{fontSize:12,fontFamily:'var(--mono)',color:'var(--text-dim)',textTransform:'uppercase',letterSpacing:'0.08em'}}>{l}</div>
+                      <input type="number" value={(newArmour as any)[f]} onChange={e=>setNewArmour(a=>({...a,[f]:Number(e.target.value)}))}
+                        style={{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:4,padding:'5px 7px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:'100%'}}/>
+                    </div>
+                  ))}
+                </div>
+                <Btn variant="primary" onClick={()=>{
+                  if(!newArmour.name.trim()) return
+                  update('armour',[...(char.armour||[]),newArmour])
+                  setNewArmour({name:'',soak:0,defenseMelee:0,defenseRanged:0,encumbrance:0})
+                }}>Add Armour</Btn>
+              </div>
+            </div>
+          ) : (
           <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch' as any}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:400}}>
             <thead>
-              <tr>{['Name','Soak','Def (Melee)','Def (Ranged)',''].map(h=>(
+              <tr>{['Name','Soak','Def (Melee)','Def (Ranged)','Enc',''].map(h=>(
                 <th key={h} style={{fontFamily:'var(--mono)',fontSize:14,textTransform:'uppercase',
                                     letterSpacing:'0.08em',color:'var(--text-dim)',padding:'5px 7px',
                                     textAlign:'left',borderBottom:'1px solid var(--border)'}}>{h}</th>
@@ -404,6 +541,11 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                         style={{background:'none',border:'none',color:'var(--text)',fontFamily:f==='name'?'var(--body)':'var(--mono)',fontSize:15,outline:'none',width:'100%'}}/>
                     </td>
                   ))}
+                  <td style={{padding:'6px 7px',fontSize:15,borderBottom:'1px solid rgba(255,255,255,0.04)',width:52}}>
+                    <input type="number" value={a.encumbrance??0} onChange={e=>{
+                      const arr=[...char.armour]; arr[i]={...arr[i],encumbrance:Number(e.target.value)}; update('armour',arr)
+                    }} style={{background:'none',border:'none',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:46}}/>
+                  </td>
                   <td>
                     <button onClick={()=>update('armour',(char.armour||[]).filter((_:any,j:number)=>j!==i))}
                       style={{background:'none',border:'none',color:'var(--text-dim)',fontSize:19,cursor:'pointer'}}>×</button>
@@ -426,16 +568,23 @@ function CharacterSheet({ char, onChange }: { char:any; onChange:(c:any)=>void }
                   </td>
                 ))}
                 <td style={{padding:'4px 7px'}}>
+                  <input type="number" value={newArmour.encumbrance} onChange={e=>setNewArmour(a=>({...a,encumbrance:Number(e.target.value)}))}
+                    placeholder="0"
+                    style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:4,
+                            padding:'5px 7px',color:'var(--text)',fontFamily:'var(--mono)',fontSize:15,outline:'none',width:52}}/>
+                </td>
+                <td style={{padding:'4px 7px'}}>
                   <Btn variant="primary" style={{padding:'6px 10px'}} onClick={()=>{
                     if(!newArmour.name.trim()) return
                     update('armour',[...(char.armour||[]),newArmour])
-                    setNewArmour({name:'',soak:0,defenseMelee:0,defenseRanged:0})
+                    setNewArmour({name:'',soak:0,defenseMelee:0,defenseRanged:0,encumbrance:0})
                   }}>+</Btn>
                 </td>
               </tr>
             </tbody>
           </table>
           </div>
+          )}
         </CardSection>
 
         {/* ── Inventory ── */}

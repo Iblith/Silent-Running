@@ -394,7 +394,7 @@ function GalaxyMap({ showHidden, isGm, onToggleHidden }: { showHidden: boolean; 
         />
         {isMobile && (
           <button onClick={()=>setSidebarOpen(o=>!o)}
-            style={{position:'absolute',bottom:16,right:16,width:44,height:44,borderRadius:'50%',
+            style={{position:'absolute',bottom:68,right:16,width:44,height:44,borderRadius:'50%',
                     background:'var(--panel)',border:'1px solid var(--border2)',
                     color:'var(--gold)',fontSize:21,display:'flex',alignItems:'center',
                     justifyContent:'center',zIndex:10,boxShadow:'0 2px 12px rgba(0,0,0,0.6)'}}>
