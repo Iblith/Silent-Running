@@ -1280,7 +1280,7 @@ export default function ShipPage() {
   const debouncedShip = useDebounce(ship, 1200)
 
   useEffect(() => {
-    Promise.all([api('/api/ship'), api('/api/characters')])
+    Promise.all([api('/api/ship'), api('/api/characters?all=1')])
       .then(([ship, chars]: any) => {
         setShip({ ...DEFAULT_SHIP, ...ship })
         setChars(chars || [])

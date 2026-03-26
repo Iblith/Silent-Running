@@ -1,6 +1,7 @@
 // app/api/characters/route.ts
-// GET  /api/characters  — list characters (GM: all; player: own only)
-// POST /api/characters  — create a character (GM or player; owner_id set from session)
+// GET  /api/characters        — list characters (GM: all; player: own only)
+// GET  /api/characters?all=1  — list all characters (any authenticated user, for crew display)
+// POST /api/characters        — create a character (GM or player; owner_id set from session)
 
 import { NextRequest, NextResponse } from 'next/server'
 import { d1 } from '@/lib/db'
@@ -16,7 +17,8 @@ export async function GET(req: NextRequest) {
     const user = await getUser(req)
     if (!user) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
 
-    const rows = user.role === 'gm'
+    const all = req.nextUrl.searchParams.get('all')
+    const rows = (user.role === 'gm' || all)
       ? await d1('SELECT * FROM characters ORDER BY updated_at DESC')
       : await d1('SELECT * FROM characters WHERE owner_id = ? ORDER BY updated_at DESC', [user.id])
 

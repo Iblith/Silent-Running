@@ -713,12 +713,10 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
                        display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{fontFamily:'var(--display)',fontSize:16,fontWeight:700,
                          letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--gold)'}}>Characters</div>
-            {isGm && (
-              <button onClick={addChar}
-                style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
-                        background:'var(--panel)',color:'var(--text-dim)',fontSize:21,cursor:'pointer',
-                        display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
-            )}
+            <button onClick={addChar}
+              style={{width:28,height:28,borderRadius:'50%',border:'1px solid var(--border2)',
+                      background:'var(--panel)',color:'var(--text-dim)',fontSize:21,cursor:'pointer',
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
           </div>
           <div style={{flex:1,overflowY:'auto',padding:8}}>
             {loading && <div style={{padding:'20px',textAlign:'center',color:'var(--text-dim)',fontSize:16,fontFamily:'var(--mono)'}}>Loading...</div>}
@@ -787,7 +785,7 @@ function CharactersView({ isGm, userId }: { isGm: boolean; userId: string }) {
               <div style={{fontFamily:'var(--display)',fontSize:19,letterSpacing:'0.08em'}}>
                 Select or create a character
               </div>
-              {isGm && <Btn variant="primary" onClick={addChar}>Create Character</Btn>}
+              <Btn variant="primary" onClick={addChar}>Create Character</Btn>
             </div>
           )
       )}
