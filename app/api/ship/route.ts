@@ -10,7 +10,7 @@ import { getSession, COOKIE_NAME } from '@/lib/auth'
 const GM_ONLY_FIELDS = [
   'name','model','speed','silhouette','handling',
   'hullTraumaThreshold','systemStrainThreshold','armor',
-  'defense','weapons','attachments',
+  'defense','weapons','attachments','cargoThreshold',
 ]
 
 async function getUser(req: NextRequest) {
@@ -26,6 +26,7 @@ const DEFAULT_SHIP = {
   defense: { fore: 2, aft: 1, port: 0, starboard: 0 },
   shields: { fore: 0, aft: 0, port: 0, starboard: 0 },
   weapons: [], attachments: [], crew: [], passengers: [], crewPositions: [], cargo: '', notes: '',
+  cargoThreshold: 100, shipLogs: [],
   skills: {
     astrogation: 0, computers: 0, cool: 0, mechanics: 0,
     perception: 0, pilotingPlanetary: 0, pilotingSpace: 0,

@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(ls \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/\\(app\\)/\")"
     ]
   }
 }

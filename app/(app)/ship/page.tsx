@@ -22,6 +22,8 @@ const DEFAULT_SHIP = {
   passengers:     [] as any[],
   crewPositions:  [] as any[],
   cargo: [] as any[], notes: '',
+  cargoThreshold: 100,
+  shipLogs: [] as any[],
 }
 
 // ── Skill/characteristic mappings (from gameData) ──
@@ -201,17 +203,6 @@ function StatusTab({ ship, isGm, isMobile, update }:
         </div>
       </div>
 
-      {/* Ship log */}
-      <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:6, padding:14 }}>
-        <ConsoleLabel color={C.cyan}>Ship Log</ConsoleLabel>
-        <ConsoleLine style={{ marginBottom:10 }}/>
-        <textarea value={ship.notes} onChange={e => update('notes', e.target.value)}
-          rows={5} placeholder="Mission notes, damage log, crew remarks…"
-          style={{ width:'100%', background:'transparent', border:'none',
-                   borderBottom:`1px solid ${C.border}`, color:C.text, fontFamily:'var(--mono)',
-                   fontSize:13, resize:'vertical', outline:'none', lineHeight:1.8,
-                   padding:'4px 0', boxSizing:'border-box' }}/>
-      </div>
     </div>
   )
 }
@@ -437,8 +428,8 @@ const CARGO_CAT_COLOR: Record<string,string> = {
   Other:       '#6a7a82',
 }
 
-function CargoTab({ ship, isMobile, update }:
-  { ship:typeof DEFAULT_SHIP; isMobile: boolean; update:(p:string,v:any)=>void }) {
+function CargoTab({ ship, isGm, isMobile, update }:
+  { ship:typeof DEFAULT_SHIP; isGm: boolean; isMobile: boolean; update:(p:string,v:any)=>void }) {
 
   const [form, setForm] = useState({
     name:'', description:'', quantity:1, encumbrance:1, category:'Cargo',
@@ -449,6 +440,8 @@ function CargoTab({ ship, isMobile, update }:
   const items: any[] = Array.isArray(ship.cargo) ? ship.cargo : []
   const totalEnc = items.reduce((s,i) => s + (Number(i.encumbrance)||0) * (Number(i.quantity)||1), 0)
   const totalItems = items.reduce((s,i) => s + (Number(i.quantity)||1), 0)
+  const threshold = ship.cargoThreshold ?? 100
+  const encColor = totalEnc > threshold ? C.red : totalEnc > threshold * 0.75 ? C.orange : C.text
 
   function addItem() {
     if (!form.name.trim()) return
@@ -486,8 +479,18 @@ function CargoTab({ ship, isMobile, update }:
           <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim }}>
             ITEMS: <span style={{ color:C.text }}>{totalItems}</span>
           </span>
-          <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim }}>
-            TOTAL ENC: <span style={{ color: totalEnc > 0 ? C.orange : C.text }}>{totalEnc}</span>
+          <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim, display:'flex', alignItems:'center', gap:4 }}>
+            ENC:&nbsp;<span style={{ color: encColor }}>{totalEnc}</span>&nbsp;/&nbsp;
+            {isGm ? (
+              <input type="number" value={threshold}
+                onChange={e => update('cargoThreshold', Number(e.target.value))}
+                title="Set encumbrance threshold"
+                style={{ background:'transparent', border:'none', borderBottom:`1px solid ${C.border}`,
+                         color:C.gold, fontFamily:'var(--mono)', fontSize:11, width:44,
+                         textAlign:'center', outline:'none', padding:'0 2px' }}/>
+            ) : (
+              <span style={{ color:C.text }}>{threshold}</span>
+            )}
           </span>
           <span style={{ fontFamily:'var(--mono)', fontSize:11,
                          color: items.length > 0 ? C.green : C.dim }}>
@@ -1024,14 +1027,244 @@ function CrewPositionsTab({ ship, isGm, isMobile, update, chars }:
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SHIP LOGS TAB
+// ─────────────────────────────────────────────────────────────────────────────
+function ShipLogsTab({ ship, isGm, isMobile, update }:
+  { ship:typeof DEFAULT_SHIP; isGm:boolean; isMobile:boolean; update:(p:string,v:any)=>void }) {
+
+  const logs: any[] = Array.isArray(ship.shipLogs) ? ship.shipLogs : []
+  const [selected,    setSelected]    = useState<string|null>(null)
+  const [composing,   setComposing]   = useState(false)
+  const [newTitle,    setNewTitle]    = useState('')
+  const [newContent,  setNewContent]  = useState('')
+  const [editing,     setEditing]     = useState(false)
+  const [editTitle,   setEditTitle]   = useState('')
+  const [editContent, setEditContent] = useState('')
+
+  const activePad = logs.find((l:any) => l.id === selected) ?? null
+  const mobileShowDetail = isMobile && (!!selected || composing)
+  const mobileShowList   = !isMobile || !mobileShowDetail
+
+  function selectLog(id: string) {
+    setSelected(id)
+    setComposing(false)
+    setEditing(false)
+    const entry = logs.find((l:any) => l.id === id)
+    if (entry) { setEditTitle(entry.title); setEditContent(entry.content) }
+  }
+
+  function addLog() {
+    if (!newTitle.trim()) return
+    const entry = { id: crypto.randomUUID(), title: newTitle, content: newContent,
+                    date: new Date().toISOString() }
+    const next = [...logs, entry]
+    update('shipLogs', next)
+    setNewTitle(''); setNewContent(''); setComposing(false)
+    setSelected(entry.id)
+    setEditTitle(entry.title); setEditContent(entry.content)
+  }
+
+  function deleteLog(id: string) {
+    if (!confirm('Delete this log entry?')) return
+    update('shipLogs', logs.filter((l:any) => l.id !== id))
+    if (selected === id) setSelected(null)
+  }
+
+  function saveEdit(id: string) {
+    update('shipLogs', logs.map((l:any) => l.id === id
+      ? { ...l, title: editTitle, content: editContent } : l))
+    setEditing(false)
+  }
+
+  const inp = (extra?: any): React.CSSProperties => ({
+    background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+    color:C.text, fontFamily:'var(--mono)', fontSize:13,
+    padding:'6px 10px', outline:'none', width:'100%', boxSizing:'border-box' as any, ...extra,
+  })
+
+  function formatDate(iso: string) {
+    try { return new Date(iso).toLocaleDateString(undefined, { day:'2-digit', month:'short', year:'2-digit' }) }
+    catch { return '' }
+  }
+
+  return (
+    <div style={{ display:'flex', gap:0, height:'100%', minHeight:400 }}>
+
+      {/* ── LIST PANEL ── */}
+      {mobileShowList && (
+        <div style={{ width: isMobile ? '100%' : 220, flexShrink:0,
+                      borderRight: isMobile ? 'none' : `1px solid ${C.border}`,
+                      display:'flex', flexDirection:'column', gap:0 }}>
+
+          {/* Header + compose button */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+                        marginBottom:12 }}>
+            <ConsoleLabel color={C.cyan}>Log Entries</ConsoleLabel>
+            {isGm && !composing && (
+              <button onClick={() => { setComposing(true); setSelected(null); setEditing(false) }}
+                style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                         color:C.cyan, fontFamily:'var(--mono)', fontSize:11, fontWeight:700,
+                         letterSpacing:'0.08em', padding:'4px 10px', cursor:'pointer' }}>
+                + NEW
+              </button>
+            )}
+          </div>
+          <ConsoleLine style={{ marginBottom:10 }}/>
+
+          {logs.length === 0 && !composing && (
+            <div style={{ fontFamily:'var(--mono)', fontSize:12, color:C.dim,
+                          padding:'16px 0', textAlign:'center' }}>
+              — NO ENTRIES —
+            </div>
+          )}
+
+          {logs.map((entry:any) => {
+            const active = selected === entry.id && !composing
+            return (
+              <button key={entry.id} onClick={() => selectLog(entry.id)}
+                style={{ background: active ? `${C.cyan}10` : 'none',
+                         border:'none', borderLeft: active ? `2px solid ${C.cyan}` : `2px solid transparent`,
+                         borderRadius:0, cursor:'pointer', padding:'10px 12px',
+                         textAlign:'left', width:'100%', marginBottom:2 }}>
+                <div style={{ fontFamily:'var(--mono)', fontSize:12, fontWeight:700,
+                              color: active ? C.bright : C.text,
+                              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {entry.title}
+                </div>
+                <div style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim, marginTop:2 }}>
+                  {formatDate(entry.date)}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── DETAIL / COMPOSE PANEL ── */}
+      <div style={{ flex:1, paddingLeft: isMobile ? 0 : 20, display:'flex', flexDirection:'column', gap:12 }}>
+
+        {/* Mobile back */}
+        {isMobile && mobileShowDetail && (
+          <button onClick={() => { setSelected(null); setComposing(false) }}
+            style={{ background:'none', border:'none', color:C.gold, fontSize:18,
+                     cursor:'pointer', padding:'0', alignSelf:'flex-start', fontFamily:'var(--mono)' }}>
+            ‹ Back
+          </button>
+        )}
+
+        {/* Compose new */}
+        {composing && isGm && (
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <ConsoleLabel color={C.cyan}>New Log Entry</ConsoleLabel>
+            <ConsoleLine/>
+            <div>
+              <ConsoleLabel>Title</ConsoleLabel>
+              <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                placeholder="Entry title"
+                onKeyDown={e => { if (e.key==='Enter') addLog() }}
+                autoFocus style={inp()}/>
+            </div>
+            <div>
+              <ConsoleLabel>Content</ConsoleLabel>
+              <textarea value={newContent} onChange={e => setNewContent(e.target.value)}
+                rows={10} placeholder="Log entry content…"
+                style={{ ...inp(), resize:'vertical', lineHeight:1.8 }}/>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={addLog}
+                style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                         color:C.cyan, fontFamily:'var(--mono)', fontSize:12, fontWeight:700,
+                         letterSpacing:'0.1em', padding:'6px 18px', cursor:'pointer' }}>
+                SAVE ENTRY
+              </button>
+              <button onClick={() => setComposing(false)}
+                style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:3,
+                         color:C.dim, fontFamily:'var(--mono)', fontSize:12,
+                         padding:'6px 14px', cursor:'pointer' }}>
+                CANCEL
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* View / edit selected */}
+        {activePad && !composing && (
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
+              {editing && isGm ? (
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                  style={{ ...inp(), fontFamily:'var(--display)', fontSize:18, fontWeight:700,
+                           color:C.bright, flex:1 }}/>
+              ) : (
+                <div style={{ fontFamily:'var(--display)', fontSize:18, fontWeight:700,
+                              color:C.bright, flex:1 }}>{activePad.title}</div>
+              )}
+              {isGm && (
+                <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                  {editing ? (
+                    <>
+                      <button onClick={() => saveEdit(activePad.id)}
+                        style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                                 color:C.cyan, fontFamily:'var(--mono)', fontSize:11, fontWeight:700,
+                                 padding:'4px 12px', cursor:'pointer' }}>SAVE</button>
+                      <button onClick={() => setEditing(false)}
+                        style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:3,
+                                 color:C.dim, fontFamily:'var(--mono)', fontSize:11,
+                                 padding:'4px 10px', cursor:'pointer' }}>CANCEL</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditing(true); setEditTitle(activePad.title); setEditContent(activePad.content) }}
+                        style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:3,
+                                 color:C.dim, fontFamily:'var(--mono)', fontSize:11,
+                                 padding:'4px 10px', cursor:'pointer' }}>EDIT</button>
+                      <button onClick={() => deleteLog(activePad.id)}
+                        style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:3,
+                                 color:C.red, fontFamily:'var(--mono)', fontSize:11,
+                                 padding:'4px 10px', cursor:'pointer' }}>DELETE</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim }}>
+              {formatDate(activePad.date)}
+            </div>
+            <ConsoleLine/>
+            {editing && isGm ? (
+              <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+                rows={14} style={{ ...inp(), resize:'vertical', lineHeight:1.8 }}/>
+            ) : (
+              <div style={{ fontFamily:'var(--mono)', fontSize:13, color:C.text,
+                            lineHeight:1.85, whiteSpace:'pre-wrap' }}>
+                {activePad.content || <span style={{ color:C.dim }}>— no content —</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!activePad && !composing && (
+          <div style={{ fontFamily:'var(--mono)', fontSize:13, color:C.dim,
+                        textAlign:'center', padding:'40px 0' }}>
+            {logs.length === 0 ? '— NO LOG ENTRIES —' : '— SELECT AN ENTRY —'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id:'status',    label:'Ship Status',      short:'STATUS'    },
-  { id:'weapons',   label:'Weapon Systems',   short:'WEAPONS'   },
-  { id:'cargo',     label:'Cargo Hold',       short:'CARGO'     },
-  { id:'crew',      label:'Crew & Passengers',short:'CREW'      },
-  { id:'positions', label:'Crew Positions',   short:'STATIONS'  },
+  { id:'status',    label:'Ship Status',    short:'STATUS'  },
+  { id:'weapons',   label:'Weapon Systems', short:'WEAPONS' },
+  { id:'cargo',     label:'Cargo Hold',     short:'CARGO'   },
+  { id:'positions', label:'Crew',           short:'CREW'    },
+  { id:'crew',      label:'Passengers',     short:'PASS'    },
+  { id:'log',       label:'Ship Log',       short:'LOG'     },
 ]
 
 export default function ShipPage() {
@@ -1234,9 +1467,10 @@ export default function ShipPage() {
         <div style={{ maxWidth:860, margin:'0 auto' }}>
           {tab === 'status'    && <StatusTab         ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
           {tab === 'weapons'   && <WeaponsTab        ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
-          {tab === 'cargo'     && <CargoTab          ship={ship} isMobile={isMobile} update={update}/>}
-          {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'cargo'     && <CargoTab          ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
           {tab === 'positions' && <CrewPositionsTab  ship={ship} isGm={isGm} isMobile={isMobile} update={update} chars={chars}/>}
+          {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'log'       && <ShipLogsTab       ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
         </div>
       </div>
     </div>
