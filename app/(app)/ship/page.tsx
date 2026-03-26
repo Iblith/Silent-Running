@@ -135,13 +135,13 @@ function DamageBar({ label, current, threshold, color, onChange }:
 // TAB CONTENT COMPONENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StatusTab({ ship, isGm, update }:
-  { ship: typeof DEFAULT_SHIP; isGm: boolean; update:(p:string,v:any)=>void }) {
+function StatusTab({ ship, isGm, isMobile, update }:
+  { ship: typeof DEFAULT_SHIP; isGm: boolean; isMobile: boolean; update:(p:string,v:any)=>void }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
 
       {/* Damage trackers */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16 }}>
         <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:6, padding:14 }}>
           <DamageBar label="Hull Trauma" current={ship.hullTraumaCurrent}
             threshold={ship.hullTraumaThreshold} color={C.red}
@@ -180,16 +180,16 @@ function StatusTab({ ship, isGm, update }:
           {/* FORE */}
           <ArcPanel label="FORE" arc="fore" ship={ship} isGm={isGm} update={update}/>
           {/* PORT | IMAGE | STARBOARD */}
-          <div style={{ display:'flex', alignItems:'center', gap:8, width:'100%' }}>
+          <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 4 : 8, width:'100%' }}>
             <ArcPanel label="PORT" arc="port" ship={ship} isGm={isGm} update={update}/>
             <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center',
-                          padding:'6px 0', position:'relative', minHeight:120 }}>
+                          padding:'6px 0', position:'relative', minHeight: isMobile ? 80 : 120 }}>
               <div style={{ position:'absolute', inset:0,
                             background:'radial-gradient(ellipse at center, rgba(0,188,212,0.07) 0%, transparent 70%)',
                             borderRadius:8 }}/>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/ship.png" alt="Ship schematic"
-                style={{ maxWidth:'100%', maxHeight:120, objectFit:'contain',
+                style={{ maxWidth:'100%', maxHeight: isMobile ? 80 : 120, objectFit:'contain',
                          filter:'invert(1) sepia(1) saturate(3) hue-rotate(170deg) brightness(0.6) contrast(1.2)',
                          opacity:0.9 }}
                 onError={e => { (e.target as HTMLImageElement).style.display='none' }}/>
@@ -249,8 +249,8 @@ function ArcPanel({ label, arc, ship, isGm, update }:
   )
 }
 
-function WeaponsTab({ ship, isGm, update }:
-  { ship: typeof DEFAULT_SHIP; isGm: boolean; update:(p:string,v:any)=>void }) {
+function WeaponsTab({ ship, isGm, isMobile, update }:
+  { ship: typeof DEFAULT_SHIP; isGm: boolean; isMobile: boolean; update:(p:string,v:any)=>void }) {
   const [form, setForm] = useState({ name:'', range:'', firingArc:'', damage:0, crit:0, special:'' })
 
   return (
@@ -437,8 +437,8 @@ const CARGO_CAT_COLOR: Record<string,string> = {
   Other:       '#6a7a82',
 }
 
-function CargoTab({ ship, update }:
-  { ship:typeof DEFAULT_SHIP; update:(p:string,v:any)=>void }) {
+function CargoTab({ ship, isMobile, update }:
+  { ship:typeof DEFAULT_SHIP; isMobile: boolean; update:(p:string,v:any)=>void }) {
 
   const [form, setForm] = useState({
     name:'', description:'', quantity:1, encumbrance:1, category:'Cargo',
@@ -645,8 +645,8 @@ function CargoTab({ ship, update }:
   )
 }
 
-function CrewTab({ ship, isGm, update }:
-  { ship:typeof DEFAULT_SHIP; isGm:boolean; update:(p:string,v:any)=>void }) {
+function CrewTab({ ship, isGm, isMobile, update }:
+  { ship:typeof DEFAULT_SHIP; isGm:boolean; isMobile: boolean; update:(p:string,v:any)=>void }) {
   const [newCrew,      setNewCrew]      = useState({ name:'', role:'', notes:'' })
   const [newPassenger, setNewPassenger] = useState({ name:'', origin:'', notes:'' })
 
@@ -787,7 +787,7 @@ function DicePool({ skillName, char }: { skillName: string; char: any }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
       <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.text,
-                     minWidth:150 }}>{skillName}</span>
+                     minWidth:130, flexShrink:0 }}>{skillName}</span>
       <div style={{ display:'flex', gap:2, alignItems:'center' }}>
         {Array.from({ length: prof }).map((_,i) => (
           <div key={`p${i}`} style={{ width:16, height:16, borderRadius:3,
@@ -816,8 +816,8 @@ function DicePool({ skillName, char }: { skillName: string; char: any }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CREW POSITIONS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-function CrewPositionsTab({ ship, isGm, update, chars }:
-  { ship: typeof DEFAULT_SHIP; isGm: boolean;
+function CrewPositionsTab({ ship, isGm, isMobile, update, chars }:
+  { ship: typeof DEFAULT_SHIP; isGm: boolean; isMobile: boolean;
     update:(p:string,v:any)=>void; chars: any[] }) {
 
   const [showAdd,   setShowAdd]   = useState(false)
@@ -925,7 +925,8 @@ function CrewPositionsTab({ ship, isGm, update, chars }:
           }}>
             {/* Position header */}
             <div style={{ padding:'10px 14px', display:'flex',
-                          alignItems:'center', justifyContent:'space-between',
+                          alignItems: isMobile ? 'flex-start' : 'center',
+                          justifyContent:'space-between', flexWrap:'wrap', gap:8,
                           borderBottom:`1px solid ${C.border}`,
                           background: assignedChar ? `${C.cyan}08` : 'transparent' }}>
               <div style={{ fontFamily:'var(--mono)', fontSize:13, fontWeight:700,
@@ -933,14 +934,15 @@ function CrewPositionsTab({ ship, isGm, update, chars }:
                             letterSpacing:'0.12em', textTransform:'uppercase' }}>
                 {pos.role}
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 {/* Character assignment dropdown — all users */}
                 <select value={pos.characterId || ''}
                   onChange={e => assignChar(pos.id, e.target.value)}
                   style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:3,
                            color: assignedChar ? C.bright : C.dim,
-                           fontFamily:'var(--mono)', fontSize:12,
-                           padding:'4px 8px', outline:'none', cursor:'pointer' }}>
+                           fontFamily:'var(--mono)', fontSize: isMobile ? 11 : 12,
+                           padding:'4px 8px', outline:'none', cursor:'pointer',
+                           maxWidth: isMobile ? 160 : 'none' }}>
                   <option value=''>— Unassigned —</option>
                   {chars.map((c:any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -958,7 +960,8 @@ function CrewPositionsTab({ ship, isGm, update, chars }:
             {/* Assigned character detail */}
             {assignedChar ? (
               <div style={{ padding:'12px 14px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                <div style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:10,
+                              flexWrap:'wrap' }}>
                   <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
                                 background:`${assignedChar.color || C.cyan}22`,
                                 border:`1px solid ${assignedChar.color || C.cyan}`,
@@ -967,7 +970,7 @@ function CrewPositionsTab({ ship, isGm, update, chars }:
                                 color: assignedChar.color || C.cyan }}>
                     {(assignedChar.name||'?').split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
                   </div>
-                  <div>
+                  <div style={{ flex:1, minWidth:80 }}>
                     <div style={{ fontFamily:'var(--display)', fontSize:14, fontWeight:700,
                                   color:C.bright }}>{assignedChar.name}</div>
                     {assignedChar.career && (
@@ -978,7 +981,7 @@ function CrewPositionsTab({ ship, isGm, update, chars }:
                     )}
                   </div>
                   {/* Relevant characteristics */}
-                  <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     {[...new Set(pos.skills.map((s:string) => SKILL_CHAR_MAP[s]).filter(Boolean))].map((abbr:any) => {
                       const key = ABBR_TO_CHAR[abbr]
                       const val = assignedChar.characteristics?.[key] || 2
@@ -1229,11 +1232,11 @@ export default function ShipPage() {
       {/* ── TAB CONTENT ── */}
       <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '14px' : '20px 24px' }}>
         <div style={{ maxWidth:860, margin:'0 auto' }}>
-          {tab === 'status'    && <StatusTab         ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'weapons'   && <WeaponsTab        ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'cargo'     && <CargoTab          ship={ship} update={update}/>}
-          {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'positions' && <CrewPositionsTab  ship={ship} isGm={isGm} update={update} chars={chars}/>}
+          {tab === 'status'    && <StatusTab         ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'weapons'   && <WeaponsTab        ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'cargo'     && <CargoTab          ship={ship} isMobile={isMobile} update={update}/>}
+          {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'positions' && <CrewPositionsTab  ship={ship} isGm={isGm} isMobile={isMobile} update={update} chars={chars}/>}
         </div>
       </div>
     </div>
