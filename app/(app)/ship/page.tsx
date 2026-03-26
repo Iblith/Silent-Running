@@ -16,29 +16,36 @@ const DEFAULT_SHIP = {
   armor: 3, currentSpeed: 0,
   defense: { fore: 2, aft: 1, port: 0, starboard: 0 },
   shields: { fore: 0, aft: 0, port: 0, starboard: 0 },
-  weapons: [] as any[],
-  attachments: [] as any[],
-  cargo: '', notes: '',
-  crew: [] as any[],
-  passengers: [] as any[],
-  skills: {
-    astrogation: 0, computers: 0, cool: 0, mechanics: 0,
-    perception: 0, pilotingPlanetary: 0, pilotingSpace: 0,
-    vigilance: 0, gunnery: 0,
-  },
+  weapons:        [] as any[],
+  attachments:    [] as any[],
+  crew:           [] as any[],
+  passengers:     [] as any[],
+  crewPositions:  [] as any[],
+  cargo: [] as any[], notes: '',
 }
 
-const SHIP_SKILLS: [string, string, string][] = [
-  ['astrogation',       'Astrogation',        'Int'],
-  ['computers',         'Computers',          'Int'],
-  ['cool',              'Cool',               'Pr'],
-  ['mechanics',         'Mechanics',          'Int'],
-  ['perception',        'Perception',         'Cun'],
-  ['pilotingPlanetary', 'Piloting: Planetary', 'Ag'],
-  ['pilotingSpace',     'Piloting: Space',    'Ag'],
-  ['vigilance',         'Vigilance',          'Will'],
-  ['gunnery',           'Gunnery',            'Ag'],
+// ── Skill/characteristic mappings (from gameData) ──
+const SKILL_CHAR_MAP: Record<string,string> = {
+  'Astrogation':'Int','Computers':'Int','Cool':'Pr','Discipline':'Wi',
+  'Gunnery':'Ag','Leadership':'Pr','Mechanics':'Int','Medicine':'Int',
+  'Perception':'Cu','Piloting (Planetary)':'Ag','Piloting (Space)':'Ag',
+  'Skulduggery':'Cu','Vigilance':'Wi',
+}
+const ABBR_TO_CHAR: Record<string,string> = {
+  Br:'Brawn',Ag:'Agility',Int:'Intellect',Cu:'Cunning',Wi:'Willpower',Pr:'Presence',
+}
+
+const PRESET_POSITIONS = [
+  { role:'Pilot',     skills:['Piloting (Space)','Piloting (Planetary)','Astrogation'] },
+  { role:'Navigator', skills:['Astrogation','Computers'] },
+  { role:'Gunner',    skills:['Gunnery'] },
+  { role:'Engineer',  skills:['Mechanics'] },
+  { role:'Slicer',    skills:['Computers','Skulduggery'] },
+  { role:'Medic',     skills:['Medicine'] },
+  { role:'Lookout',   skills:['Perception','Vigilance'] },
+  { role:'Commander', skills:['Leadership','Cool','Discipline'] },
 ]
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSOLE PRIMITIVES
@@ -419,23 +426,220 @@ function AttachmentForm({ ship, update }:
   )
 }
 
+const CARGO_CATEGORIES = ['Cargo','Supplies','Equipment','Weapons','Contraband','Personal','Other']
+const CARGO_CAT_COLOR: Record<string,string> = {
+  Cargo:       '#a0b4c0',
+  Supplies:    '#66bb6a',
+  Equipment:   '#4FC3F7',
+  Weapons:     '#FF9800',
+  Contraband:  '#ef5350',
+  Personal:    '#D4AC0D',
+  Other:       '#6a7a82',
+}
+
 function CargoTab({ ship, update }:
   { ship:typeof DEFAULT_SHIP; update:(p:string,v:any)=>void }) {
+
+  const [form, setForm] = useState({
+    name:'', description:'', quantity:1, encumbrance:1, category:'Cargo',
+  })
+  const [editId, setEditId] = useState<string|null>(null)
+  const [editForm, setEditForm] = useState<any>(null)
+
+  const items: any[] = Array.isArray(ship.cargo) ? ship.cargo : []
+  const totalEnc = items.reduce((s,i) => s + (Number(i.encumbrance)||0) * (Number(i.quantity)||1), 0)
+  const totalItems = items.reduce((s,i) => s + (Number(i.quantity)||1), 0)
+
+  function addItem() {
+    if (!form.name.trim()) return
+    update('cargo', [...items, { ...form, id: crypto.randomUUID() }])
+    setForm({ name:'', description:'', quantity:1, encumbrance:1, category:'Cargo' })
+  }
+
+  function removeItem(id: string) {
+    update('cargo', items.filter((i:any) => i.id !== id))
+  }
+
+  function startEdit(item: any) {
+    setEditId(item.id)
+    setEditForm({ ...item })
+  }
+
+  function saveEdit() {
+    update('cargo', items.map((i:any) => i.id === editId ? { ...editForm } : i))
+    setEditId(null); setEditForm(null)
+  }
+
+  const inp = (extra?: any): React.CSSProperties => ({
+    background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+    color:C.text, fontFamily:'var(--mono)', fontSize:13,
+    padding:'5px 8px', outline:'none', width:'100%', boxSizing:'border-box' as any, ...extra,
+  })
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <ConsoleLabel color={C.cyan}>Cargo Hold Manifest</ConsoleLabel>
-      <ConsoleLine/>
-      <div style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:6, padding:14 }}>
-        <ConsoleLabel color={C.dim}>Inventory &amp; Cargo</ConsoleLabel>
-        <textarea value={ship.cargo} onChange={e => update('cargo', e.target.value)}
-          rows={12} placeholder="List cargo, contraband, stored equipment, supplies…"
-          style={{ width:'100%', background:'transparent', border:'none', color:C.text,
-                   fontFamily:'var(--mono)', fontSize:13, resize:'vertical', outline:'none',
-                   lineHeight:1.9, padding:'4px 0', boxSizing:'border-box',
-                   borderBottom:`1px solid ${C.border}` }}/>
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+
+      {/* Manifest header + stats */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8 }}>
+        <ConsoleLabel color={C.cyan}>Hold Manifest — {items.length} Line{items.length!==1?'s':''}</ConsoleLabel>
+        <div style={{ display:'flex', gap:14 }}>
+          <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim }}>
+            ITEMS: <span style={{ color:C.text }}>{totalItems}</span>
+          </span>
+          <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim }}>
+            TOTAL ENC: <span style={{ color: totalEnc > 0 ? C.orange : C.text }}>{totalEnc}</span>
+          </span>
+          <span style={{ fontFamily:'var(--mono)', fontSize:11,
+                         color: items.length > 0 ? C.green : C.dim }}>
+            ● {items.length > 0 ? 'LOADED' : 'EMPTY'}
+          </span>
+        </div>
       </div>
-      <div style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim, textAlign:'right' }}>
-        HOLD STATUS: {ship.cargo.trim() ? 'CARGO LOADED' : 'EMPTY'}
+      <ConsoleLine/>
+
+      {/* Item list */}
+      {items.length === 0 && (
+        <div style={{ fontFamily:'var(--mono)', fontSize:13, color:C.dim,
+                      textAlign:'center', padding:'24px 0' }}>
+          — HOLD IS EMPTY —
+        </div>
+      )}
+
+      {items.map((item: any) => {
+        const catColor = CARGO_CAT_COLOR[item.category] || C.dim
+        const isEditing = editId === item.id
+        return (
+          <div key={item.id} style={{
+            background:C.panel2, border:`1px solid ${C.border}`,
+            borderLeft:`3px solid ${catColor}`, borderRadius:4, overflow:'hidden',
+          }}>
+            {isEditing && editForm ? (
+              /* ── EDIT MODE ── */
+              <div style={{ padding:'12px 14px', display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  <div style={{ flex:'3 1 160px' }}>
+                    <ConsoleLabel>Name</ConsoleLabel>
+                    <input value={editForm.name} onChange={e => setEditForm((f:any) => ({...f,name:e.target.value}))} style={inp()}/>
+                  </div>
+                  <div style={{ flex:'1 1 80px' }}>
+                    <ConsoleLabel>Category</ConsoleLabel>
+                    <select value={editForm.category} onChange={e => setEditForm((f:any) => ({...f,category:e.target.value}))}
+                      style={{ ...inp(), cursor:'pointer' }}>
+                      {CARGO_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex:'1 1 60px' }}>
+                    <ConsoleLabel>Qty</ConsoleLabel>
+                    <input type="number" value={editForm.quantity} onChange={e => setEditForm((f:any) => ({...f,quantity:Number(e.target.value)}))} style={inp()}/>
+                  </div>
+                  <div style={{ flex:'1 1 60px' }}>
+                    <ConsoleLabel>Enc ea.</ConsoleLabel>
+                    <input type="number" value={editForm.encumbrance} onChange={e => setEditForm((f:any) => ({...f,encumbrance:Number(e.target.value)}))} style={inp()}/>
+                  </div>
+                </div>
+                <div>
+                  <ConsoleLabel>Description</ConsoleLabel>
+                  <input value={editForm.description} onChange={e => setEditForm((f:any) => ({...f,description:e.target.value}))} style={inp()}/>
+                </div>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={saveEdit}
+                    style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                             color:C.cyan, fontFamily:'var(--mono)', fontSize:11, fontWeight:700,
+                             letterSpacing:'0.1em', padding:'5px 14px', cursor:'pointer', textTransform:'uppercase' }}>
+                    Save
+                  </button>
+                  <button onClick={() => { setEditId(null); setEditForm(null) }}
+                    style={{ background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+                             color:C.dim, fontFamily:'var(--mono)', fontSize:11,
+                             padding:'5px 14px', cursor:'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ── VIEW MODE ── */
+              <div style={{ padding:'10px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom: item.description ? 4 : 0, flexWrap:'wrap' }}>
+                    <span style={{ fontFamily:'var(--display)', fontSize:15, fontWeight:700,
+                                   color:C.bright }}>{item.name}</span>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:10, color:catColor,
+                                   background:`${catColor}12`, border:`1px solid ${catColor}30`,
+                                   borderRadius:3, padding:'1px 7px', letterSpacing:'0.1em',
+                                   textTransform:'uppercase', flexShrink:0 }}>{item.category}</span>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim, flexShrink:0 }}>
+                      ×{item.quantity}
+                    </span>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:11,
+                                   color: item.encumbrance > 0 ? C.text : C.dim, flexShrink:0 }}>
+                      Enc {item.encumbrance * item.quantity}
+                      {item.quantity > 1 && (
+                        <span style={{ color:C.dim }}> ({item.encumbrance} ea)</span>
+                      )}
+                    </span>
+                  </div>
+                  {item.description && (
+                    <div style={{ fontFamily:'var(--body)', fontSize:13, color:C.text,
+                                  lineHeight:1.55 }}>{item.description}</div>
+                  )}
+                </div>
+                <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                  <button onClick={() => startEdit(item)}
+                    style={{ background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+                             color:C.dim, fontFamily:'var(--mono)', fontSize:11,
+                             padding:'3px 8px', cursor:'pointer' }}>EDIT</button>
+                  <button onClick={() => removeItem(item.id)}
+                    style={{ background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+                             color:C.dim, fontFamily:'var(--mono)', fontSize:11,
+                             padding:'3px 8px', cursor:'pointer' }}>✕</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Add item form */}
+      <div style={{ background:`${C.cyan}05`, border:`1px dashed ${C.cyan}25`,
+                    borderRadius:6, padding:14, marginTop:4 }}>
+        <ConsoleLabel color={C.cyan}>+ Log Cargo Item</ConsoleLabel>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginBottom:8 }}>
+          <div style={{ flex:'3 1 160px' }}>
+            <ConsoleLabel>Name</ConsoleLabel>
+            <input value={form.name} onChange={e => setForm(f => ({...f,name:e.target.value}))}
+              placeholder="Item designation"
+              onKeyDown={e => { if (e.key==='Enter') addItem() }}
+              style={inp()}/>
+          </div>
+          <div style={{ flex:'2 1 100px' }}>
+            <ConsoleLabel>Category</ConsoleLabel>
+            <select value={form.category} onChange={e => setForm(f => ({...f,category:e.target.value}))}
+              style={{ ...inp(), cursor:'pointer' }}>
+              {CARGO_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ flex:'1 1 55px', minWidth:50 }}>
+            <ConsoleLabel>Qty</ConsoleLabel>
+            <input type="number" value={form.quantity} onChange={e => setForm(f => ({...f,quantity:Number(e.target.value)}))} style={inp()}/>
+          </div>
+          <div style={{ flex:'1 1 55px', minWidth:50 }}>
+            <ConsoleLabel>Enc ea.</ConsoleLabel>
+            <input type="number" value={form.encumbrance} onChange={e => setForm(f => ({...f,encumbrance:Number(e.target.value)}))} style={inp()}/>
+          </div>
+          <div style={{ flex:'4 1 200px' }}>
+            <ConsoleLabel>Description</ConsoleLabel>
+            <input value={form.description} onChange={e => setForm(f => ({...f,description:e.target.value}))}
+              placeholder="Optional details"
+              onKeyDown={e => { if (e.key==='Enter') addItem() }}
+              style={inp()}/>
+          </div>
+        </div>
+        <button onClick={addItem}
+          style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                   color:C.cyan, fontFamily:'var(--mono)', fontSize:12, fontWeight:700,
+                   letterSpacing:'0.1em', padding:'6px 18px', cursor:'pointer', textTransform:'uppercase' }}>
+          Add to Manifest
+        </button>
       </div>
     </div>
   )
@@ -568,35 +772,247 @@ function CrewTab({ ship, isGm, update }:
   )
 }
 
-function SkillsTab({ ship, update }:
-  { ship:typeof DEFAULT_SHIP; update:(p:string,v:any)=>void }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// DICE POOL DISPLAY
+// ─────────────────────────────────────────────────────────────────────────────
+function DicePool({ skillName, char }: { skillName: string; char: any }) {
+  const abbr    = SKILL_CHAR_MAP[skillName] || 'Int'
+  const charKey = ABBR_TO_CHAR[abbr] || 'Intellect'
+  const charVal = char.characteristics?.[charKey] || 2
+  const rawSkill = char.skills?.[skillName] ?? 0
+  const rank    = typeof rawSkill === 'object' ? (rawSkill.rank ?? 0) : rawSkill
+  const prof    = Math.min(rank, charVal)
+  const abil    = Math.max(rank, charVal) - prof
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-      <ConsoleLabel color={C.cyan}>Crew Skill Ratings</ConsoleLabel>
-      <ConsoleLine style={{ marginBottom:6 }}/>
-      {SHIP_SKILLS.map(([key, label, attr]) => {
-        const rank = (ship.skills as any)[key] || 0
-        return (
-          <div key={key} style={{ display:'flex', alignItems:'center', gap:10,
-                                  padding:'7px 10px', background:C.panel,
-                                  border:`1px solid ${C.border}`, borderRadius:4,
-                                  borderLeft:`2px solid ${rank > 0 ? C.gold : C.dim}` }}>
-            <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.cyanDim, width:30,
-                           textAlign:'center', flexShrink:0, background:`${C.cyan}08`,
-                           border:`1px solid ${C.border}`, borderRadius:3, padding:'2px 0' }}>{attr}</span>
-            <span style={{ flex:1, fontFamily:'var(--mono)', fontSize:13, color:C.text }}>{label}</span>
-            <div style={{ display:'flex', gap:3 }}>
-              {Array.from({ length:5 }).map((_,i) => (
-                <div key={i} onClick={() => update(`skills.${key}`, i < rank ? i : i+1)}
-                  style={{ width:13, height:13, borderRadius:2, cursor:'pointer',
-                           background: i < rank ? C.gold : `${C.gold}12`,
-                           border:`1px solid ${i < rank ? C.gold+'80' : C.border}`,
-                           boxShadow: i < rank ? `0 0 4px ${C.gold}60` : 'none',
-                           transition:'all 0.1s' }}/>
-              ))}
+    <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+      <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.text,
+                     minWidth:150 }}>{skillName}</span>
+      <div style={{ display:'flex', gap:2, alignItems:'center' }}>
+        {Array.from({ length: prof }).map((_,i) => (
+          <div key={`p${i}`} style={{ width:16, height:16, borderRadius:3,
+                                      background:'#D4AC0D', border:'1px solid #a88000',
+                                      display:'flex', alignItems:'center', justifyContent:'center',
+                                      fontSize:11, fontWeight:700, color:'#1a0d00',
+                                      boxShadow:'0 0 4px #D4AC0D60' }}>Y</div>
+        ))}
+        {Array.from({ length: abil }).map((_,i) => (
+          <div key={`a${i}`} style={{ width:16, height:16, borderRadius:3,
+                                      background:'#2e7d32', border:'1px solid #1b5e20',
+                                      display:'flex', alignItems:'center', justifyContent:'center',
+                                      fontSize:11, fontWeight:700, color:'#c8ffc8' }}>G</div>
+        ))}
+        {prof === 0 && abil === 0 && (
+          <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.dim }}>— untrained —</span>
+        )}
+      </div>
+      <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim }}>
+        {rank > 0 || charVal > 2 ? `(rank ${rank} / ${abbr} ${charVal})` : ''}
+      </span>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREW POSITIONS TAB
+// ─────────────────────────────────────────────────────────────────────────────
+function CrewPositionsTab({ ship, isGm, update, chars }:
+  { ship: typeof DEFAULT_SHIP; isGm: boolean;
+    update:(p:string,v:any)=>void; chars: any[] }) {
+
+  const [showAdd,   setShowAdd]   = useState(false)
+  const [customRole, setCustomRole] = useState('')
+  const [presetPick, setPresetPick] = useState(PRESET_POSITIONS[0].role)
+
+  const positions: any[] = ship.crewPositions || []
+
+  function addPosition(role: string) {
+    const preset = PRESET_POSITIONS.find(p => p.role === role)
+    const skills = preset ? preset.skills : []
+    const id     = crypto.randomUUID()
+    update('crewPositions', [...positions, { id, role, skills, characterId: '' }])
+    setShowAdd(false)
+    setCustomRole('')
+  }
+
+  function removePosition(id: string) {
+    update('crewPositions', positions.filter((p:any) => p.id !== id))
+  }
+
+  function assignChar(id: string, characterId: string) {
+    update('crewPositions', positions.map((p:any) => p.id === id ? { ...p, characterId } : p))
+  }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <ConsoleLabel color={C.cyan}>Crew Stations — {positions.length} Position{positions.length!==1?'s':''}</ConsoleLabel>
+        {isGm && (
+          <button onClick={() => setShowAdd(s => !s)}
+            style={{ background:`${C.gold}10`, border:`1px solid ${C.gold}40`, borderRadius:3,
+                     color:C.gold, fontFamily:'var(--mono)', fontSize:11, fontWeight:700,
+                     letterSpacing:'0.1em', padding:'4px 12px', cursor:'pointer',
+                     textTransform:'uppercase' }}>
+            {showAdd ? 'CANCEL' : '+ ADD STATION'}
+          </button>
+        )}
+      </div>
+      <ConsoleLine/>
+
+      {/* Add position form */}
+      {isGm && showAdd && (
+        <div style={{ background:`${C.gold}06`, border:`1px dashed ${C.gold}30`,
+                      borderRadius:6, padding:14 }}>
+          <ConsoleLabel color={C.gold}>Configure New Station</ConsoleLabel>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:10, marginBottom:10 }}>
+            <div style={{ flex:'2 1 160px' }}>
+              <ConsoleLabel>Preset Roles</ConsoleLabel>
+              <select value={presetPick} onChange={e => setPresetPick(e.target.value)}
+                style={{ background:C.panel2, border:`1px solid ${C.border}`, borderRadius:3,
+                         color:C.text, fontFamily:'var(--mono)', fontSize:13,
+                         padding:'6px 8px', outline:'none', width:'100%' }}>
+                {PRESET_POSITIONS.map(p => (
+                  <option key={p.role} value={p.role}>{p.role}</option>
+                ))}
+              </select>
             </div>
-            <span style={{ fontFamily:'var(--mono)', fontSize:13, color:rank > 0 ? C.gold : C.dim,
-                           width:14, textAlign:'right' }}>{rank}</span>
+            <div style={{ display:'flex', alignItems:'flex-end' }}>
+              <button onClick={() => addPosition(presetPick)}
+                style={{ background:`${C.gold}15`, border:`1px solid ${C.gold}50`, borderRadius:3,
+                         color:C.gold, fontFamily:'var(--mono)', fontSize:12, fontWeight:700,
+                         letterSpacing:'0.1em', padding:'7px 14px', cursor:'pointer',
+                         textTransform:'uppercase' }}>
+                Add Preset
+              </button>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+            <div style={{ flex:1 }}>
+              <ConsoleLabel>Custom Role Name</ConsoleLabel>
+              <input value={customRole} onChange={e => setCustomRole(e.target.value)}
+                placeholder="e.g. Demolitions Expert"
+                onKeyDown={e => { if (e.key === 'Enter' && customRole.trim()) addPosition(customRole.trim()) }}
+                style={{ background:'transparent', border:`1px solid ${C.border}`, borderRadius:3,
+                         color:C.text, fontFamily:'var(--mono)', fontSize:13,
+                         padding:'6px 8px', outline:'none', width:'100%', boxSizing:'border-box' }}/>
+            </div>
+            <button onClick={() => { if (customRole.trim()) addPosition(customRole.trim()) }}
+              style={{ background:`${C.cyan}10`, border:`1px solid ${C.cyan}40`, borderRadius:3,
+                       color:C.cyan, fontFamily:'var(--mono)', fontSize:12, fontWeight:700,
+                       letterSpacing:'0.1em', padding:'7px 14px', cursor:'pointer', textTransform:'uppercase',
+                       flexShrink:0 }}>
+              Add Custom
+            </button>
+          </div>
+        </div>
+      )}
+
+      {positions.length === 0 && !showAdd && (
+        <div style={{ fontFamily:'var(--mono)', fontSize:13, color:C.dim,
+                      textAlign:'center', padding:'30px 0' }}>
+          — NO CREW STATIONS CONFIGURED —<br/>
+          {isGm && <span style={{ fontSize:11, opacity:0.6 }}>Use "+ Add Station" to assign crew roles</span>}
+        </div>
+      )}
+
+      {positions.map((pos: any) => {
+        const assignedChar = chars.find((c:any) => c.id === pos.characterId)
+        return (
+          <div key={pos.id} style={{
+            background:C.panel2, border:`1px solid ${C.border}`,
+            borderLeft:`3px solid ${assignedChar ? C.cyan : C.dim}`,
+            borderRadius:5, overflow:'hidden',
+          }}>
+            {/* Position header */}
+            <div style={{ padding:'10px 14px', display:'flex',
+                          alignItems:'center', justifyContent:'space-between',
+                          borderBottom:`1px solid ${C.border}`,
+                          background: assignedChar ? `${C.cyan}08` : 'transparent' }}>
+              <div style={{ fontFamily:'var(--mono)', fontSize:13, fontWeight:700,
+                            color: assignedChar ? C.cyan : C.dim,
+                            letterSpacing:'0.12em', textTransform:'uppercase' }}>
+                {pos.role}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                {/* Character assignment dropdown — all users */}
+                <select value={pos.characterId || ''}
+                  onChange={e => assignChar(pos.id, e.target.value)}
+                  style={{ background:C.panel, border:`1px solid ${C.border}`, borderRadius:3,
+                           color: assignedChar ? C.bright : C.dim,
+                           fontFamily:'var(--mono)', fontSize:12,
+                           padding:'4px 8px', outline:'none', cursor:'pointer' }}>
+                  <option value=''>— Unassigned —</option>
+                  {chars.map((c:any) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                {isGm && (
+                  <button onClick={() => removePosition(pos.id)}
+                    style={{ background:'none', border:`1px solid ${C.border}`, borderRadius:3,
+                             color:C.dim, fontSize:12, cursor:'pointer', padding:'3px 8px',
+                             fontFamily:'var(--mono)' }}>✕</button>
+                )}
+              </div>
+            </div>
+
+            {/* Assigned character detail */}
+            {assignedChar ? (
+              <div style={{ padding:'12px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
+                                background:`${assignedChar.color || C.cyan}22`,
+                                border:`1px solid ${assignedChar.color || C.cyan}`,
+                                display:'flex', alignItems:'center', justifyContent:'center',
+                                fontFamily:'var(--display)', fontSize:12, fontWeight:700,
+                                color: assignedChar.color || C.cyan }}>
+                    {(assignedChar.name||'?').split(' ').map((w:string)=>w[0]).join('').slice(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily:'var(--display)', fontSize:14, fontWeight:700,
+                                  color:C.bright }}>{assignedChar.name}</div>
+                    {assignedChar.career && (
+                      <div style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim,
+                                    textTransform:'uppercase', letterSpacing:'0.1em' }}>
+                        {assignedChar.career}
+                      </div>
+                    )}
+                  </div>
+                  {/* Relevant characteristics */}
+                  <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
+                    {[...new Set(pos.skills.map((s:string) => SKILL_CHAR_MAP[s]).filter(Boolean))].map((abbr:any) => {
+                      const key = ABBR_TO_CHAR[abbr]
+                      const val = assignedChar.characteristics?.[key] || 2
+                      return (
+                        <div key={abbr} style={{ textAlign:'center' }}>
+                          <div style={{ fontFamily:'var(--mono)', fontSize:9, color:C.dim,
+                                        letterSpacing:'0.1em' }}>{abbr}</div>
+                          <div style={{ fontFamily:'var(--display)', fontSize:18, fontWeight:700,
+                                        color:C.bright }}>{val}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Skill dice pools */}
+                <div style={{ display:'flex', flexDirection:'column', gap:6,
+                              borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+                  <ConsoleLabel color={C.dim}>Relevant Skill Rolls</ConsoleLabel>
+                  {pos.skills.length === 0 ? (
+                    <span style={{ fontFamily:'var(--mono)', fontSize:12, color:C.dim }}>
+                      No skills defined for this position
+                    </span>
+                  ) : pos.skills.map((skill:string) => (
+                    <DicePool key={skill} skillName={skill} char={assignedChar}/>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding:'10px 14px', fontFamily:'var(--mono)', fontSize:12,
+                            color:C.dim, fontStyle:'italic' }}>
+                No crew member assigned to this station
+              </div>
+            )}
           </div>
         )
       })}
@@ -608,11 +1024,11 @@ function SkillsTab({ ship, update }:
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id:'status',  label:'Ship Status',    short:'STATUS'   },
-  { id:'weapons', label:'Weapon Systems', short:'WEAPONS'  },
-  { id:'cargo',   label:'Cargo Hold',     short:'CARGO'    },
-  { id:'crew',    label:'Crew & Passengers', short:'CREW'  },
-  { id:'skills',  label:'Crew Skills',    short:'SKILLS'   },
+  { id:'status',    label:'Ship Status',      short:'STATUS'    },
+  { id:'weapons',   label:'Weapon Systems',   short:'WEAPONS'   },
+  { id:'cargo',     label:'Cargo Hold',       short:'CARGO'     },
+  { id:'crew',      label:'Crew & Passengers',short:'CREW'      },
+  { id:'positions', label:'Crew Positions',   short:'STATIONS'  },
 ]
 
 export default function ShipPage() {
@@ -623,14 +1039,17 @@ export default function ShipPage() {
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [tab,     setTab]     = useState('status')
+  const [chars,   setChars]   = useState<any[]>([])
 
   const debouncedShip = useDebounce(ship, 1200)
 
   useEffect(() => {
-    api('/api/ship').then((d: any) => {
-      setShip({ ...DEFAULT_SHIP, ...d })
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    Promise.all([api('/api/ship'), api('/api/characters')])
+      .then(([ship, chars]: any) => {
+        setShip({ ...DEFAULT_SHIP, ...ship })
+        setChars(chars || [])
+        setLoading(false)
+      }).catch(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -810,11 +1229,11 @@ export default function ShipPage() {
       {/* ── TAB CONTENT ── */}
       <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '14px' : '20px 24px' }}>
         <div style={{ maxWidth:860, margin:'0 auto' }}>
-          {tab === 'status'  && <StatusTab  ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'weapons' && <WeaponsTab ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'cargo'   && <CargoTab   ship={ship} update={update}/>}
-          {tab === 'crew'    && <CrewTab    ship={ship} isGm={isGm} update={update}/>}
-          {tab === 'skills'  && <SkillsTab  ship={ship} update={update}/>}
+          {tab === 'status'    && <StatusTab         ship={ship} isGm={isGm} update={update}/>}
+          {tab === 'weapons'   && <WeaponsTab        ship={ship} isGm={isGm} update={update}/>}
+          {tab === 'cargo'     && <CargoTab          ship={ship} update={update}/>}
+          {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} update={update}/>}
+          {tab === 'positions' && <CrewPositionsTab  ship={ship} isGm={isGm} update={update} chars={chars}/>}
         </div>
       </div>
     </div>

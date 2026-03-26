@@ -25,7 +25,7 @@ const DEFAULT_SHIP = {
   armor: 3, currentSpeed: 0,
   defense: { fore: 2, aft: 1, port: 0, starboard: 0 },
   shields: { fore: 0, aft: 0, port: 0, starboard: 0 },
-  weapons: [], attachments: [], crew: [], passengers: [], cargo: '', notes: '',
+  weapons: [], attachments: [], crew: [], passengers: [], crewPositions: [], cargo: '', notes: '',
   skills: {
     astrogation: 0, computers: 0, cool: 0, mechanics: 0,
     perception: 0, pilotingPlanetary: 0, pilotingSpace: 0,
