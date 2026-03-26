@@ -73,11 +73,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isGm = user.role === 'gm'
 
   const ALL_TABS = [
-    { path:'/gm',          label:'GM Dashboard', mobileLabel:'GM',         icon:'⚙',  gmOnly:true  },
-    { path:'/galaxy',      label:'Galaxy Map',   mobileLabel:'Galaxy',     icon:'✦',  gmOnly:false },
-    { path:'/characters',  label: isGm ? 'Characters' : 'My Character', mobileLabel: isGm ? 'Chars' : 'Character', icon:'◈', gmOnly:false },
-    { path:'/adversaries', label:'Adversaries',  mobileLabel:'Adversaries',icon:'⚔',  gmOnly:true  },
-    { path:'/datapad',     label:'Datapads',     mobileLabel:'Datapads',   icon:'📟', gmOnly:false },
+    { path:'/gm',          label:'GM Dashboard', mobileLabel:'GM',      icon:'⚙',  gmOnly:true  },
+    { path:'/galaxy',      label:'Galaxy Map',   mobileLabel:'Galaxy',  icon:'✦',  gmOnly:false },
+    { path:'/ship',        label:'The Ship',     mobileLabel:'Ship',    icon:'◉',  gmOnly:false },
+    { path:'/characters',  label: isGm ? 'Characters' : 'My Character', mobileLabel: isGm ? 'Chars' : 'Char', icon:'◈', gmOnly:false },
+    { path:'/adversaries', label:'Adversaries',  mobileLabel:'Enemies', icon:'⚔',  gmOnly:true  },
+    { path:'/datapad',     label:'Datapads',     mobileLabel:'Pads',    icon:'📟', gmOnly:false },
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 

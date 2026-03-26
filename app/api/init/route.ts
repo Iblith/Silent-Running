@@ -129,6 +129,12 @@ export async function POST() {
       created_at TEXT DEFAULT (datetime('now'))
     )`)
 
+    await run(`CREATE TABLE IF NOT EXISTS ship (
+      id      TEXT PRIMARY KEY DEFAULT 'main',
+      data    TEXT NOT NULL DEFAULT '{}'
+    )`)
+    await run(`INSERT OR IGNORE INTO ship (id, data) VALUES ('main', '{}')`)
+
     await run(`INSERT OR IGNORE INTO campaign_state (id) VALUES ('main')`)
     await run(`INSERT OR IGNORE INTO initiative_state (id) VALUES ('main')`)
 
