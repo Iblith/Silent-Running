@@ -4,7 +4,10 @@
       "Bash(npx tsc:*)",
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(python -c \":*)",
-      "Bash(ls \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/\\(app\\)/\")"
+      "Bash(ls \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/\\(app\\)/\")",
+      "Bash(cp \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/public/ship.png\" \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/icon.png\")",
+      "Bash(cp \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/public/ship.png\" \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/apple-icon.png\")",
+      "Bash(cp \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/public/ship.png\" \"p:/North East Media/Production/Team Folders/Jacob/Silent-Running/app/opengraph-image.png\")"
     ]
   }
 }

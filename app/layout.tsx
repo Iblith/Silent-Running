@@ -2,8 +2,18 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Star wars FFG: Campagin 2',
-  description: 'Campaign management system for Star Wars FFG',
+  title: 'Star Wars FFG: Campaign 2',
+  description: 'Campaign management system for the Star Wars FFG: Campaign 2 tabletop RPG.',
+  openGraph: {
+    title: 'Star Wars FFG: Campaign 2',
+    description: 'Campaign management system for the Star Wars FFG: Campaign 2 tabletop RPG.',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Star Wars FFG: Campaign 2',
+    description: 'Campaign management system for the Star Wars FFG: Campaign 2 tabletop RPG.',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
