@@ -252,6 +252,8 @@ function GMDashboard() {
     if (k === 'campaignName') window.dispatchEvent(new CustomEvent('campaignNameChange', {detail: v}))
   }
 
+  const isMobile = useIsMobile()
+
   const duty: number         = state.duty ?? 0
   const tier: number         = state.tier ?? 1
   const crewCriticals: any[] = state.crewCriticals ?? []
@@ -284,17 +286,19 @@ function GMDashboard() {
         <input
           value={state.campaignName||''}
           onChange={(e:any)=>upd('campaignName',e.target.value)}
-          style={{flex:1,minWidth:220,background:'var(--bg2)',border:'1px solid var(--border2)',
+          style={{flex:1,minWidth:isMobile?100:220,background:'var(--bg2)',border:'1px solid var(--border2)',
                   borderRadius:4,padding:'7px 12px',color:'var(--text-bright)',
                   fontFamily:'var(--display)',fontSize:19,fontWeight:700,
                   letterSpacing:'0.08em',textTransform:'uppercase',outline:'none'}}
         />
-        <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>
-          Updates top bar &amp; browser tab
-        </span>
+        {!isMobile && (
+          <span style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--text-dim)'}}>
+            Updates top bar &amp; browser tab
+          </span>
+        )}
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:1200,margin:'0 auto'}}>
+      <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(3,1fr)',gap:16,maxWidth:1200,margin:'0 auto'}}>
 
         {/* Heat Track */}
         <GmCard title="Heat Track">
@@ -587,7 +591,7 @@ function InitiativeTracker() {
 
         {data.slots.length===0 && (
           <div style={{textAlign:'center',padding:'40px',color:'var(--text-dim)',fontFamily:'var(--mono)',fontSize:15}}>
-            No combatants. Add them from the right panel.
+            No combatants. Add them {isMobile ? 'below.' : 'from the right panel.'}
           </div>
         )}
 
@@ -595,48 +599,58 @@ function InitiativeTracker() {
           const cur = idx===data.currentIdx
           const accent = slot.type==='player'?'var(--gold)':slot.type==='enemy'?'var(--red)':'var(--blue-bright)'
           return (
-            <div key={slot.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
+            <div key={slot.id} style={{display:'flex',
+                                       flexDirection: isMobile ? 'column' : 'row',
+                                       alignItems: isMobile ? 'stretch' : 'center',
+                                       gap: isMobile ? 8 : 12,
+                                       padding:'10px 14px',
                                        background:cur?`${accent}0D`:'var(--panel)',
                                        border:`1px solid ${cur?accent:'var(--border)'}`,borderRadius:6,
                                        transition:'all 0.2s',opacity:slot.used&&!cur?0.5:1,
                                        boxShadow:cur?`0 0 12px ${accent}1A`:'none',
                                        position:'relative',overflow:'hidden'}}>
               <div style={{position:'absolute',left:0,top:0,bottom:0,width:3,background:accent}}/>
-              <div style={{fontFamily:'var(--mono)',fontSize:19,fontWeight:700,
-                           color:cur?accent:'var(--text-dim)',minWidth:26}}>{idx+1}</div>
-              <span style={{padding:'2px 7px',borderRadius:3,fontSize:14,fontFamily:'var(--mono)',
-                            textTransform:'uppercase',letterSpacing:'0.1em',
-                            background:`${accent}33`,color:accent}}>{slot.type.toUpperCase()}</span>
-              <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',flex:1}}>{slot.name}</div>
-              <div style={{display:'flex',alignItems:'center',gap:3}}>
+              {/* Row 1: number, type, name, action buttons */}
+              <div style={{display:'flex',alignItems:'center',gap: isMobile ? 8 : 12, flex: isMobile ? undefined : 1}}>
+                <div style={{fontFamily:'var(--mono)',fontSize:19,fontWeight:700,
+                             color:cur?accent:'var(--text-dim)',minWidth:26}}>{idx+1}</div>
+                <span style={{padding:'2px 7px',borderRadius:3,fontSize:14,fontFamily:'var(--mono)',
+                              textTransform:'uppercase',letterSpacing:'0.1em',
+                              background:`${accent}33`,color:accent}}>{slot.type.toUpperCase()}</span>
+                <div style={{fontFamily:'var(--display)',fontSize:17,fontWeight:600,color:'var(--text-bright)',flex:1}}>{slot.name}</div>
+                <div style={{display:'flex',gap:4}}>
+                  <button onClick={()=>addCrit(slot)} title="Add Critical"
+                    style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
+                            background:'rgba(255,255,255,0.04)',color:'var(--text-dim)',cursor:'pointer',
+                            display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⚡</button>
+                  <button onClick={()=>act({action:'remove_slot',id:slot.id})}
+                    style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
+                            background:'rgba(255,255,255,0.04)',color:'var(--red)',cursor:'pointer',
+                            display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>×</button>
+                </div>
+              </div>
+              {/* Row 2: wound/strain dots + crit badge */}
+              <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap'}}>
                 <span style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)'}}>W</span>
                 {Array.from({length:Math.min(slot.wt,15)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'wounds',i<(slot.wounds||0)?-1:1)}
-                    style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
+                    style={{width: isMobile?14:10, height: isMobile?14:10,
+                            borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
                             background:i<(slot.wounds||0)?'var(--red)':'transparent'}}/>
                 ))}
                 <span style={{fontSize:14,fontFamily:'var(--mono)',color:'var(--text-dim)',marginLeft:5}}>S</span>
                 {Array.from({length:Math.min(slot.st,12)}).map((_,i)=>(
                   <div key={i} onClick={()=>wound(slot,'strain',i<(slot.strain||0)?-1:1)}
-                    style={{width:10,height:10,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
+                    style={{width: isMobile?14:10, height: isMobile?14:10,
+                            borderRadius:'50%',border:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',
                             background:i<(slot.strain||0)?'#E67E22':'transparent'}}/>
                 ))}
-              </div>
-              {(slot.crits||[]).length>0 && (
-                <span style={{padding:'2px 6px',background:'rgba(192,57,43,0.3)',border:'1px solid var(--red)',
-                              borderRadius:3,fontSize:14,fontFamily:'var(--mono)',color:'var(--red)'}}>
-                  CRIT ×{slot.crits.length}
-                </span>
-              )}
-              <div style={{display:'flex',gap:4}}>
-                <button onClick={()=>addCrit(slot)} title="Add Critical"
-                  style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
-                          background:'rgba(255,255,255,0.04)',color:'var(--text-dim)',cursor:'pointer',
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>⚡</button>
-                <button onClick={()=>act({action:'remove_slot',id:slot.id})}
-                  style={{width:27,height:27,borderRadius:4,border:'1px solid var(--border)',
-                          background:'rgba(255,255,255,0.04)',color:'var(--red)',cursor:'pointer',
-                          display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>×</button>
+                {(slot.crits||[]).length>0 && (
+                  <span style={{padding:'2px 6px',background:'rgba(192,57,43,0.3)',border:'1px solid var(--red)',
+                                borderRadius:3,fontSize:14,fontFamily:'var(--mono)',color:'var(--red)',marginLeft:5}}>
+                    CRIT ×{slot.crits.length}
+                  </span>
+                )}
               </div>
             </div>
           )
