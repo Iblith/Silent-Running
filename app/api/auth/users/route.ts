@@ -14,7 +14,9 @@ async function requireGm(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    if (!(await requireGm(req))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const session = await getSession(req.cookies.get(COOKIE_NAME)?.value)
+    if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+    // Any authenticated user can see the user list (for comms DMs)
     const users = await d1<any>('SELECT id, username, role, character_id FROM users ORDER BY username')
     return NextResponse.json(users)
   } catch (e: any) {

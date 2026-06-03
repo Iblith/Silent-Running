@@ -79,6 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { path:'/characters',  label: isGm ? 'Characters' : 'My Character', mobileLabel: isGm ? 'Chars' : 'Char', icon:'◈', gmOnly:false },
     { path:'/adversaries', label:'Adversaries',  mobileLabel:'Enemies', icon:'⚔',  gmOnly:true  },
     { path:'/datapad',     label:'Datapads',     mobileLabel:'Pads',    icon:'📟', gmOnly:false },
+    { path:'/comms',       label:'Ship Comms',   mobileLabel:'Comms',   icon:'◎',  gmOnly:false },
   ]
   const TABS = ALL_TABS.filter(t => isGm || !t.gmOnly)
 

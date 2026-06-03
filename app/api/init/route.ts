@@ -80,6 +80,7 @@ export async function POST() {
     await run(`ALTER TABLE characters ADD COLUMN armour    TEXT DEFAULT '[]'`).catch(()=>{})
     await run(`ALTER TABLE characters ADD COLUMN inventory TEXT DEFAULT '[]'`).catch(()=>{})
     await run(`ALTER TABLE characters ADD COLUMN credits   INTEGER DEFAULT 0`).catch(()=>{})
+    await run(`ALTER TABLE datapads   ADD COLUMN owner_id  TEXT DEFAULT ''`).catch(()=>{})
 
     await run(`CREATE TABLE IF NOT EXISTS initiative_slots (
       id         TEXT PRIMARY KEY,
@@ -137,6 +138,15 @@ export async function POST() {
       data    TEXT NOT NULL DEFAULT '{}'
     )`)
     await run(`INSERT OR IGNORE INTO ship (id, data) VALUES ('main', '{}')`)
+
+    await run(`CREATE TABLE IF NOT EXISTS messages (
+      id           TEXT PRIMARY KEY,
+      sender_id    TEXT NOT NULL,
+      sender_name  TEXT NOT NULL,
+      recipient_id TEXT,
+      text         TEXT NOT NULL,
+      created_at   TEXT DEFAULT (datetime('now'))
+    )`)
 
     await run(`INSERT OR IGNORE INTO campaign_state (id) VALUES ('main')`)
     await run(`INSERT OR IGNORE INTO initiative_state (id) VALUES ('main')`)

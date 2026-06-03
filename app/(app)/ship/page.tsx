@@ -1029,8 +1029,8 @@ function CrewPositionsTab({ ship, isGm, isMobile, update, chars }:
 // ─────────────────────────────────────────────────────────────────────────────
 // SHIP LOGS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-function ShipLogsTab({ ship, isGm, isMobile, update }:
-  { ship:typeof DEFAULT_SHIP; isGm:boolean; isMobile:boolean; update:(p:string,v:any)=>void }) {
+function ShipLogsTab({ ship, isGm, isMobile, update, userId }:
+  { ship:typeof DEFAULT_SHIP; isGm:boolean; isMobile:boolean; update:(p:string,v:any)=>void; userId:string }) {
 
   const logs: any[] = Array.isArray(ship.shipLogs) ? ship.shipLogs : []
   const [selected,    setSelected]    = useState<string|null>(null)
@@ -1056,7 +1056,7 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
   function addLog() {
     if (!newTitle.trim()) return
     const entry = { id: crypto.randomUUID(), title: newTitle, content: newContent,
-                    date: new Date().toISOString() }
+                    date: new Date().toISOString(), authorId: userId }
     const next = [...logs, entry]
     update('shipLogs', next)
     setNewTitle(''); setNewContent(''); setComposing(false)
@@ -1100,7 +1100,7 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
                         marginBottom:12 }}>
             <ConsoleLabel color={C.cyan}>Log Entries</ConsoleLabel>
-            {isGm && !composing && (
+            {!composing && (
               <button onClick={() => { setComposing(true); setSelected(null); setEditing(false) }}
                 style={{ background:`${C.cyan}12`, border:`1px solid ${C.cyan}40`, borderRadius:3,
                          color:C.cyan, fontFamily:'var(--mono)', fontSize:11, fontWeight:700,
@@ -1120,6 +1120,7 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
 
           {logs.map((entry:any) => {
             const active = selected === entry.id && !composing
+            const isOwn  = entry.authorId === userId
             return (
               <button key={entry.id} onClick={() => selectLog(entry.id)}
                 style={{ background: active ? `${C.cyan}10` : 'none',
@@ -1131,8 +1132,10 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                   {entry.title}
                 </div>
-                <div style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim, marginTop:2 }}>
-                  {formatDate(entry.date)}
+                <div style={{ fontFamily:'var(--mono)', fontSize:10, color:C.dim, marginTop:2,
+                              display:'flex', gap:6 }}>
+                  <span>{formatDate(entry.date)}</span>
+                  {isOwn && <span style={{ color:`${C.gold}90` }}>you</span>}
                 </div>
               </button>
             )
@@ -1152,8 +1155,8 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
           </button>
         )}
 
-        {/* Compose new */}
-        {composing && isGm && (
+        {/* Compose new — available to all */}
+        {composing && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             <ConsoleLabel color={C.cyan}>New Log Entry</ConsoleLabel>
             <ConsoleLine/>
@@ -1188,10 +1191,12 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
         )}
 
         {/* View / edit selected */}
-        {activePad && !composing && (
+        {activePad && !composing && (() => {
+          const canEdit = isGm || activePad.authorId === userId
+          return (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
-              {editing && isGm ? (
+              {editing && canEdit ? (
                 <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
                   style={{ ...inp(), fontFamily:'var(--display)', fontSize:18, fontWeight:700,
                            color:C.bright, flex:1 }}/>
@@ -1199,7 +1204,7 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
                 <div style={{ fontFamily:'var(--display)', fontSize:18, fontWeight:700,
                               color:C.bright, flex:1 }}>{activePad.title}</div>
               )}
-              {isGm && (
+              {canEdit && (
                 <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                   {editing ? (
                     <>
@@ -1231,7 +1236,7 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
               {formatDate(activePad.date)}
             </div>
             <ConsoleLine/>
-            {editing && isGm ? (
+            {editing && canEdit ? (
               <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
                 rows={14} style={{ ...inp(), resize:'vertical', lineHeight:1.8 }}/>
             ) : (
@@ -1241,7 +1246,8 @@ function ShipLogsTab({ ship, isGm, isMobile, update }:
               </div>
             )}
           </div>
-        )}
+          )
+        })()}
 
         {/* Empty state */}
         {!activePad && !composing && (
@@ -1270,6 +1276,7 @@ const TABS = [
 export default function ShipPage() {
   const { user }  = useAuth()
   const isGm      = user?.role === 'gm'
+  const userId    = user?.id || ''
   const isMobile  = useIsMobile()
   const [ship,    setShip]    = useState<typeof DEFAULT_SHIP>(DEFAULT_SHIP)
   const [loading, setLoading] = useState(true)
@@ -1470,7 +1477,7 @@ export default function ShipPage() {
           {tab === 'cargo'     && <CargoTab          ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
           {tab === 'positions' && <CrewPositionsTab  ship={ship} isGm={isGm} isMobile={isMobile} update={update} chars={chars}/>}
           {tab === 'crew'      && <CrewTab           ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
-          {tab === 'log'       && <ShipLogsTab       ship={ship} isGm={isGm} isMobile={isMobile} update={update}/>}
+          {tab === 'log'       && <ShipLogsTab       ship={ship} isGm={isGm} isMobile={isMobile} update={update} userId={userId}/>}
         </div>
       </div>
     </div>

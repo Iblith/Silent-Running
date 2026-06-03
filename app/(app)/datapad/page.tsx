@@ -10,12 +10,14 @@ interface Datapad {
   title: string
   content: string
   revealed: number
+  owner_id: string
   created_at: string
 }
 
 export default function DatapadPage() {
   const { user } = useAuth()
   const isGm = user?.role === 'gm'
+  const userId = user?.id || ''
   const isMobile = useIsMobile()
 
   const [pads,     setPads]     = useState<Datapad[]>([])
@@ -114,12 +116,12 @@ export default function DatapadPage() {
                       color:'var(--text-bright)',letterSpacing:'0.1em',textTransform:'uppercase'}}>
           {isMobile && mobileShowDetail && activePad ? activePad.title : 'Datapads'}
         </span>
-        {isGm && !composing && (!isMobile || !mobileShowDetail) && (
+        {!composing && (!isMobile || !mobileShowDetail) && (
           <Btn variant="primary" onClick={()=>{ setComposing(true); setSelected(null) }}>
             + Compose
           </Btn>
         )}
-        {isGm && composing && (
+        {composing && (
           <Btn variant="ghost" onClick={()=>setComposing(false)}>Cancel</Btn>
         )}
       </div>
@@ -198,13 +200,20 @@ export default function DatapadPage() {
         <div style={{flex:1,overflowY:'auto',padding: isMobile ? '16px' : '24px'}}>
 
           {/* Compose form */}
-          {composing && isGm && (
+          {composing && (
             <div style={{maxWidth:640}}>
               <div style={{fontFamily:'var(--mono)',fontSize:13,fontWeight:700,
                            color:'var(--text-dim)',textTransform:'uppercase',
                            letterSpacing:'0.1em',marginBottom:14}}>
                 New Datapad Entry
               </div>
+              {!isGm && (
+                <div style={{fontFamily:'var(--mono)',fontSize:13,color:'var(--text-dim)',
+                             background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',
+                             borderRadius:5,padding:'7px 10px',marginBottom:12}}>
+                  Your entry will be <span style={{color:'var(--text)'}}>shared with everyone</span> immediately.
+                </div>
+              )}
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 <input value={newTitle} onChange={e=>setNewTitle(e.target.value)}
                   placeholder="Title / Subject"
@@ -217,7 +226,7 @@ export default function DatapadPage() {
                   <Btn variant="primary"
                     onClick={handleCreate}
                     style={saving || !newTitle.trim() ? {opacity:0.4,pointerEvents:'none'} : {}}>
-                    {saving ? 'Saving…' : 'Create (Hidden)'}
+                    {saving ? 'Saving…' : isGm ? 'Create (Hidden)' : 'Share Entry'}
                   </Btn>
                 </div>
               </div>
@@ -284,17 +293,20 @@ export default function DatapadPage() {
                         {activePad.title}
                       </div>
                       <div style={{fontFamily:'var(--body)',fontSize:15,color:'var(--text)',
-                                   lineHeight:1.75,whiteSpace:'pre-wrap',marginBottom: isGm ? 20 : 0}}>
+                                   lineHeight:1.75,whiteSpace:'pre-wrap',
+                                   marginBottom:(isGm || activePad.owner_id === userId) ? 20 : 0}}>
                         {activePad.content ||
                           <span style={{color:'var(--text-dim)',fontStyle:'italic'}}>No content.</span>}
                       </div>
-                      {isGm && (
+                      {(isGm || activePad.owner_id === userId) && (
                         <div style={{display:'flex',gap:8,flexWrap:'wrap',
                                      borderTop:'1px solid var(--border)',paddingTop:14}}>
-                          <Btn variant={revealed ? 'ghost' : 'primary'}
-                            onClick={()=>handleReveal(activePad.id, !revealed)}>
-                            {revealed ? 'Hide from players' : 'Reveal to players'}
-                          </Btn>
+                          {isGm && (
+                            <Btn variant={revealed ? 'ghost' : 'primary'}
+                              onClick={()=>handleReveal(activePad.id, !revealed)}>
+                              {revealed ? 'Hide from players' : 'Reveal to players'}
+                            </Btn>
+                          )}
                           <Btn variant="ghost" onClick={()=>{ setEditing(true) }}>Edit</Btn>
                           <Btn variant="danger" onClick={()=>handleDelete(activePad.id)}>Delete</Btn>
                         </div>
