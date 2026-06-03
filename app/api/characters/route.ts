@@ -42,8 +42,9 @@ export async function POST(req: NextRequest) {
          id, name, player, species, career, specialisation, color_idx,
          characteristics, wounds, wound_threshold, strain, strain_threshold,
          soak, defense, force_rating, duty, duty_type, morality,
-         skills, talents, weapons, equipment, notes, xp, total_xp, owner_id
-       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         skills, talents, weapons, equipment, armour, inventory, credits,
+         notes, xp, total_xp, owner_id
+       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [...serialiseParams({ ...body, id }), ownerId]
     )
     return NextResponse.json({ ok: true, id })

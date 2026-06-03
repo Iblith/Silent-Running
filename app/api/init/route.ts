@@ -75,8 +75,11 @@ export async function POST() {
       updated_at       TEXT DEFAULT (datetime('now'))
     )`)
 
-    // Migration: add owner_id to existing installs (safe to run multiple times)
-    await run(`ALTER TABLE characters ADD COLUMN owner_id TEXT DEFAULT ''`).catch(()=>{})
+    // Migrations: safe to run multiple times — ALTER TABLE errors are suppressed
+    await run(`ALTER TABLE characters ADD COLUMN owner_id  TEXT DEFAULT ''`).catch(()=>{})
+    await run(`ALTER TABLE characters ADD COLUMN armour    TEXT DEFAULT '[]'`).catch(()=>{})
+    await run(`ALTER TABLE characters ADD COLUMN inventory TEXT DEFAULT '[]'`).catch(()=>{})
+    await run(`ALTER TABLE characters ADD COLUMN credits   INTEGER DEFAULT 0`).catch(()=>{})
 
     await run(`CREATE TABLE IF NOT EXISTS initiative_slots (
       id         TEXT PRIMARY KEY,
