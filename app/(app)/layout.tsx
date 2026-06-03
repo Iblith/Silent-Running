@@ -4,7 +4,7 @@
 // Checks session on mount; redirects to /login if unauthenticated.
 // Provides AuthContext and renders the top bar + navigation.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { AuthContext, AuthUser } from '@/lib/auth-context'
@@ -19,8 +19,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [heat,      setHeat]      = useState(0)
   const [session,   setSession]   = useState(1)
   const [campName,  setCampName]  = useState('Operation: Silent Running')
+  const [commsUnread, setCommsUnread] = useState(false)
 
   const isMobile = useIsMobile()
+  const commsLatestRef = useRef<string>('')
 
   // Check session on mount
   useEffect(() => {
@@ -50,6 +52,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     window.addEventListener('campaignNameChange', handler)
     return () => window.removeEventListener('campaignNameChange', handler)
   }, [])
+
+  // Clear comms badge when navigating to /comms
+  useEffect(() => {
+    if (pathname === '/comms') setCommsUnread(false)
+  }, [pathname])
+
+  // Poll for new comms messages when away from /comms
+  useEffect(() => {
+    if (!user) return
+    const tick = async () => {
+      if (pathname === '/comms') return
+      try {
+        const qs = commsLatestRef.current
+          ? `?channel=all&since=${encodeURIComponent(commsLatestRef.current)}`
+          : '?channel=all'
+        const rows: any[] = await fetch(`/api/messages${qs}`)
+          .then(r => r.ok ? r.json() : []).catch(() => [])
+        const fromOthers = rows.filter((m: any) => m.sender_id !== user.id)
+        if (fromOthers.length) setCommsUnread(true)
+        if (rows.length) commsLatestRef.current = rows[rows.length - 1].created_at
+      } catch {}
+    }
+    tick()
+    const id = setInterval(tick, 5000)
+    return () => clearInterval(id)
+  }, [user, pathname])
 
   // Sync document title
   useEffect(() => { document.title = campName }, [campName])
@@ -105,17 +133,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {!isMobile && (
             <nav style={{display:'flex',gap:2,flex:1}}>
-              {TABS.map(t => (
-                <Link key={t.path} href={t.path}
-                  style={{padding:'0 16px',height:52,border:'none',background:'none',textDecoration:'none',
-                          fontFamily:'var(--display)',fontSize:16,fontWeight:600,
-                          letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',
-                          color:isActive(t.path)?'var(--gold)':'var(--text-dim)',transition:'all 0.2s',
-                          display:'flex',alignItems:'center',gap:8,
-                          borderBottom:isActive(t.path)?'2px solid var(--gold)':'2px solid transparent'}}>
-                  <span style={{fontSize:17}}>{t.icon}</span>{t.label}
-                </Link>
-              ))}
+              {TABS.map(t => {
+                const hasUnread = t.path === '/comms' && commsUnread
+                return (
+                  <Link key={t.path} href={t.path}
+                    style={{padding:'0 16px',height:52,border:'none',background:'none',textDecoration:'none',
+                            fontFamily:'var(--display)',fontSize:16,fontWeight:600,
+                            letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',
+                            color:isActive(t.path)?'var(--gold)':'var(--text-dim)',transition:'all 0.2s',
+                            display:'flex',alignItems:'center',gap:8,position:'relative',
+                            borderBottom:isActive(t.path)?'2px solid var(--gold)':'2px solid transparent'}}>
+                    <span style={{fontSize:17}}>{t.icon}</span>{t.label}
+                    {hasUnread && (
+                      <span style={{width:8,height:8,borderRadius:'50%',background:'var(--red)',
+                                    flexShrink:0,boxShadow:'0 0 6px var(--red)',
+                                    animation:'pulse 1s ease-in-out infinite'}}/>
+                    )}
+                  </Link>
+                )
+              })}
             </nav>
           )}
 
@@ -162,20 +198,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <nav style={{position:'fixed',bottom:0,left:0,right:0,height:52,
                        display:'flex',background:'linear-gradient(90deg,#080E1C 0%,#0A1228 50%,#080E1C 100%)',
                        borderTop:'1px solid rgba(255,255,255,0.14)',zIndex:200}}>
-            {TABS.map(t => (
-              <Link key={t.path} href={t.path}
-                style={{flex:1,minWidth:0,border:'none',background:'none',cursor:'pointer',textDecoration:'none',
-                        display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-                        gap:2,padding:'4px 2px',overflow:'hidden',
-                        borderTop:isActive(t.path)?'2px solid var(--gold)':'2px solid transparent',
-                        color:isActive(t.path)?'var(--gold)':'var(--text-dim)'}}>
-                <span style={{fontSize:19}}>{t.icon}</span>
-                <span style={{fontFamily:'var(--display)',fontSize:11,fontWeight:600,
-                              letterSpacing:'0.04em',textTransform:'uppercase',
-                              whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
-                              maxWidth:'100%'}}>{t.mobileLabel}</span>
-              </Link>
-            ))}
+            {TABS.map(t => {
+              const hasUnread = t.path === '/comms' && commsUnread
+              return (
+                <Link key={t.path} href={t.path}
+                  style={{flex:1,minWidth:0,border:'none',background:'none',cursor:'pointer',textDecoration:'none',
+                          display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                          gap:2,padding:'4px 2px',overflow:'hidden',position:'relative',
+                          borderTop:isActive(t.path)?'2px solid var(--gold)':'2px solid transparent',
+                          color:isActive(t.path)?'var(--gold)':'var(--text-dim)'}}>
+                  <span style={{fontSize:19,position:'relative',display:'inline-block'}}>
+                    {t.icon}
+                    {hasUnread && (
+                      <span style={{position:'absolute',top:-2,right:-4,width:8,height:8,
+                                    borderRadius:'50%',background:'var(--red)',
+                                    boxShadow:'0 0 6px var(--red)',
+                                    animation:'pulse 1s ease-in-out infinite'}}/>
+                    )}
+                  </span>
+                  <span style={{fontFamily:'var(--display)',fontSize:11,fontWeight:600,
+                                letterSpacing:'0.04em',textTransform:'uppercase',
+                                whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+                                maxWidth:'100%'}}>{t.mobileLabel}</span>
+                </Link>
+              )
+            })}
           </nav>
         )}
 

@@ -122,8 +122,14 @@ export default function CommsPage() {
       fetch('/api/auth/users').then(r => r.ok ? r.json() : []).catch(() => []),
       fetch('/api/characters?all=1').then(r => r.ok ? r.json() : []).catch(() => []),
     ]).then(([u, c]) => {
-      setUsers((u || []).filter((u: any) => u.id !== myId))
-      setChars(c || [])
+      const chars: any[] = c || []
+      // Attach character name + colorIdx to each user
+      const enriched = (u || []).map((usr: any) => {
+        const char = chars.find((ch: any) => ch.id === usr.character_id)
+        return { ...usr, displayName: char?.name || usr.username, colorIdx: char?.colorIdx ?? 0 }
+      })
+      setUsers(enriched.filter((usr: any) => usr.id !== myId))
+      setChars(chars)
     })
   }, [myId])
 
@@ -225,13 +231,13 @@ export default function CommsPage() {
 
   // ── Colour helpers ─────────────────────────────────────────────────────────
   function colorForUser(userId: string) {
-    const allUsers = [{ id: myId }, ...users]
-    const idx = allUsers.findIndex(u => u.id === userId)
+    const u = users.find((u: any) => u.id === userId)
+    const idx = u?.colorIdx ?? users.findIndex((u: any) => u.id === userId)
     return userColor(userId, idx < 0 ? 0 : idx)
   }
 
   const activeUser = users.find((u: any) => u.id === channel)
-  const activeName = channel === 'all' ? 'All Crew' : activeUser?.username || 'DM'
+  const activeName = channel === 'all' ? 'All Crew' : activeUser?.displayName || 'DM'
 
   // Mobile: show sidebar or chat, not both
   const [mobileSidebar, setMobileSidebar] = useState(true)
@@ -285,11 +291,11 @@ export default function CommsPage() {
                               color: 'var(--text-dim)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   Direct
                 </div>
-                {users.map((u: any, i: number) => (
+                {users.map((u: any) => (
                   <ChannelBtn
                     key={u.id}
-                    label={u.username}
-                    icon={(u.username || '?')[0].toUpperCase()}
+                    label={u.displayName}
+                    icon={(u.displayName || '?')[0].toUpperCase()}
                     color={colorForUser(u.id)}
                     active={channel === u.id}
                     unread={unread[u.id] || 0}

@@ -56,10 +56,19 @@ export async function POST(req: NextRequest) {
     const recipientId = body.recipientId || null
     const id          = crypto.randomUUID()
 
+    // Use linked character name if available, fall back to username
+    const userRow = await d1<any>('SELECT character_id FROM users WHERE id = ?', [user.id])
+    const charId  = userRow[0]?.character_id
+    let displayName = user.username
+    if (charId) {
+      const charRow = await d1<any>('SELECT name FROM characters WHERE id = ?', [charId])
+      if (charRow[0]?.name) displayName = charRow[0].name
+    }
+
     await d1(
       `INSERT INTO messages (id, sender_id, sender_name, recipient_id, text, created_at)
        VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      [id, user.id, user.username, recipientId, text]
+      [id, user.id, displayName, recipientId, text]
     )
 
     return NextResponse.json({ ok: true, id })
