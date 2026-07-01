@@ -41,10 +41,12 @@ export interface SpaceShip {
   attachments: ShipAttachment[]
   crits: string[]         // crit effect descriptions
   // map position
-  col: number             // 0-49
-  row: number             // 0-49
+  col: number
+  row: number
+  // facing angle in degrees (0 = up, clockwise)
+  facing: number
   // dogfighting
-  dogfightingWith: string[]   // ids of ships in same dogfight cluster
+  dogfightingWith: string[]
 }
 
 interface ShipWeapon {
@@ -105,6 +107,7 @@ function newShip(overrides: Partial<SpaceShip> = {}): SpaceShip {
     weapons: [], attachments: [], crits: [],
     col: Math.floor(Math.random() * 40) + 5,
     row: Math.floor(Math.random() * 40) + 5,
+    facing: 0,
     dogfightingWith: [],
     ...overrides,
   }
@@ -182,27 +185,30 @@ function BarTrack({ label, current, threshold, color, onChange }: any) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHIP TRIANGLE TOKEN  (SVG)
+// angleDeg: 0 = pointing up, rotates clockwise
 // ─────────────────────────────────────────────────────────────────────────────
-function ShipTriangle({ faction, silhouette, selected, dogfighting }:
-  { faction: string; silhouette: number; selected: boolean; dogfighting: boolean }) {
+function ShipTriangle({ faction, silhouette, selected, dogfighting, angleDeg }:
+  { faction: string; silhouette: number; selected: boolean; dogfighting: boolean; angleDeg: number }) {
   const col  = FACTION_COLOR[faction] ?? '#78909c'
   const size = silhSize(silhouette)
   const half = size / 2
-  // Upward-pointing triangle: peak at top, base at bottom
-  const pts  = `0,${size} ${half},0 ${size},${size}`
+  // Triangle centred at (half, half), pointing up before rotation
+  const pts  = `${half},0 0,${size} ${size},${size}`
   return (
     <svg width={size} height={size} style={{ display:'block', overflow:'visible' }}>
-      {dogfighting && (
-        <circle cx={half} cy={half} r={half + 4}
-          fill="none" stroke="#9B59B6" strokeWidth={1.5}
-          strokeDasharray="3 2" opacity={0.8}/>
-      )}
-      <polygon points={pts} fill={`${col}33`}
-        stroke={selected ? '#fff' : col}
-        strokeWidth={selected ? 2 : 1.5}/>
-      {selected && (
-        <polygon points={pts} fill="none" stroke="#fff" strokeWidth={3} opacity={0.25}/>
-      )}
+      <g transform={`rotate(${angleDeg} ${half} ${half})`}>
+        {dogfighting && (
+          <circle cx={half} cy={half} r={half + 4}
+            fill="none" stroke="#9B59B6" strokeWidth={1.5}
+            strokeDasharray="3 2" opacity={0.8}/>
+        )}
+        <polygon points={pts} fill={`${col}33`}
+          stroke={selected ? '#fff' : col}
+          strokeWidth={selected ? 2 : 1.5}/>
+        {selected && (
+          <polygon points={pts} fill="none" stroke="#fff" strokeWidth={3} opacity={0.25}/>
+        )}
+      </g>
     </svg>
   )
 }
@@ -220,7 +226,7 @@ interface MapProps {
   ships: SpaceShip[]
   selectedId: string | null
   onSelect: (id: string | null) => void
-  onMove: (id: string, col: number, row: number) => void
+  onMove: (id: string, col: number, row: number, facing?: number) => void
   isGm: boolean
 }
 
@@ -276,10 +282,25 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
     const next = { ...dragRef.current, curCol: col, curRow: row }
     dragRef.current = next
     setDrag(next)
-    onMove(dragRef.current.shipId, col, row)
+    // Compute facing from drag direction (atan2: 0=up, clockwise)
+    const dCol = col - dragRef.current.startCol
+    const dRow = row - dragRef.current.startRow
+    const facing = (dCol !== 0 || dRow !== 0)
+      ? Math.round(Math.atan2(dCol, -dRow) * (180 / Math.PI))
+      : undefined
+    onMove(dragRef.current.shipId, col, row, facing)
   }
 
   function onShipPointerUp() {
+    if (dragRef.current) {
+      const { shipId, startCol, startRow, curCol, curRow } = dragRef.current
+      const dCol = curCol - startCol
+      const dRow = curRow - startRow
+      if (dCol !== 0 || dRow !== 0) {
+        const facing = Math.round(Math.atan2(dCol, -dRow) * (180 / Math.PI))
+        onMove(shipId, curCol, curRow, facing)
+      }
+    }
     dragRef.current = null
     setDrag(null)
   }
@@ -1306,9 +1327,12 @@ export default function SpaceCombatPage() {
     updateShips(ships.filter(s => s.id !== id))
   }
 
-  function moveShip(id: string, col: number, row: number) {
+  function moveShip(id: string, col: number, row: number, facing?: number) {
     if (!isGm) return
-    updateShips(ships.map(s => s.id === id ? { ...s, col, row } : s))
+    updateShips(ships.map(s => s.id === id
+      ? { ...s, col, row, ...(facing !== undefined ? { facing } : {}) }
+      : s
+    ))
   }
 
   const selectedShip = ships.find(s => s.id === selectedId) ?? null
