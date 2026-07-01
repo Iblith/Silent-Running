@@ -7,6 +7,7 @@ import React, {
   useState, useEffect, useRef, useCallback, useMemo,
 } from 'react'
 import { api } from '@/lib/ui'
+import { NPC_STATS } from '@/lib/gameData'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -703,13 +704,10 @@ function ShipEditor({ ship, characters, onChange, onDelete, onClose }:
         {/* ── CREW TAB ── */}
         {tab === 'crew' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            <div style={{ fontSize:13, fontFamily:'var(--mono)', color:'var(--text-dim)',
-                          lineHeight:1.5, marginBottom:4 }}>
-              Assign characters to crew positions on this ship.
-              Character stats (Brawn, Agility, etc.) are read-only here.
+            <div style={{ fontSize:12, fontFamily:'var(--mono)', color:'var(--text-dim)', lineHeight:1.5 }}>
+              Assign crew from adversaries (NPC) or player characters (PC).
+              Gunnery, Piloting (Space) and Mechanics are highlighted.
             </div>
-
-            {/* Linked character crew cards */}
             <CrewAssignment ship={ship} characters={characters} onChange={onChange}/>
           </div>
         )}
@@ -762,33 +760,45 @@ function ShipEditor({ ship, characters, onChange, onDelete, onClose }:
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CREW ASSIGNMENT
+// CREW ASSIGNMENT — sources from NPCs (adversaries) + player characters
 // ─────────────────────────────────────────────────────────────────────────────
 const CREW_ROLES = ['Pilot','Co-Pilot','Gunner','Engineer','Sensor Operator','Commander','Passenger']
 
 interface CrewSlot {
   role: string
-  characterId: string
+  npcKey: string      // key into NPC_STATS, or '' for unnamed
+  characterId: string // player character id, or '' if using NPC
+  useNpc: boolean
+}
+
+// Pull a skill rank from NPC skills array
+function npcSkillRank(npc: any, skillName: string): number {
+  return npc.skills?.find((s: any) => s.name === skillName)?.rank ?? 0
 }
 
 function CrewAssignment({ ship, characters, onChange }:
   { ship: SpaceShip; characters: any[]; onChange: (s: SpaceShip) => void }) {
-  // We store crewSlots as JSON string in ship.crew for simplicity
   let slots: CrewSlot[] = []
   try { slots = JSON.parse(ship.crew) } catch {}
   if (!Array.isArray(slots)) slots = []
+
+  // Migrate old format (characterId string) gracefully
+  slots = slots.map((s: any) => {
+    if (typeof s === 'object' && 'useNpc' in s) return s
+    return { role: s.role ?? 'Pilot', npcKey: '', characterId: s.characterId ?? '', useNpc: false }
+  })
 
   function setSlots(next: CrewSlot[]) {
     onChange({ ...ship, crew: JSON.stringify(next) })
   }
 
   function addSlot() {
-    setSlots([...slots, { role: 'Pilot', characterId: '' }])
+    setSlots([...slots, { role: 'Pilot', npcKey: '', characterId: '', useNpc: true }])
   }
 
-  function updateSlot(i: number, k: keyof CrewSlot, v: string) {
+  function updateSlot(i: number, patch: Partial<CrewSlot>) {
     const next = [...slots]
-    next[i] = { ...next[i], [k]: v }
+    next[i] = { ...next[i], ...patch }
     setSlots(next)
   }
 
@@ -796,11 +806,7 @@ function CrewAssignment({ ship, characters, onChange }:
     setSlots(slots.filter((_,si) => si !== i))
   }
 
-  function charStats(charId: string) {
-    const c = characters.find(ch => ch.id === charId)
-    if (!c) return null
-    return c
-  }
+  const npcEntries = Object.entries(NPC_STATS)
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -809,70 +815,158 @@ function CrewAssignment({ ship, characters, onChange }:
                       textAlign:'center', padding:'16px 0' }}>No crew assigned.</div>
       )}
       {slots.map((slot, i) => {
-        const ch = charStats(slot.characterId)
+        const npc = slot.useNpc && slot.npcKey ? (NPC_STATS as any)[slot.npcKey] : null
+        const pc  = !slot.useNpc && slot.characterId
+          ? characters.find(c => c.id === slot.characterId)
+          : null
+
+        // Resolve combat stats for display
+        const gunnery    = npc ? npcSkillRank(npc, 'Gunnery')          : (pc?.skills?.['Gunnery'] ?? 0)
+        const piloting   = npc ? npcSkillRank(npc, 'Piloting (Space)') : (pc?.skills?.['Piloting (Space)'] ?? 0)
+        const mechanics  = npc ? npcSkillRank(npc, 'Mechanics')        : (pc?.skills?.['Mechanics'] ?? 0)
+        const agility    = npc ? npc.agility    : (pc?.characteristics?.Agility ?? null)
+        const intellect  = npc ? npc.intellect  : (pc?.characteristics?.Intellect ?? null)
+        const wounds     = npc ? null           : pc
+        const hasResolve = npc || pc
+
+        const typeCol = slot.useNpc ? 'var(--red)' : 'var(--gold)'
+
         return (
           <div key={i} style={{ background:'var(--panel)', border:'1px solid var(--border)',
                                  borderRadius:6, padding:10 }}>
-            <div style={{ display:'flex', gap:6, marginBottom:ch?8:0 }}>
-              <select value={slot.role} onChange={e => updateSlot(i, 'role', e.target.value)}
-                style={{ background:'var(--bg3)', border:'1px solid var(--border)',
-                         borderRadius:4, padding:'4px 6px', color:'var(--gold)',
-                         fontFamily:'var(--display)', fontSize:13, fontWeight:600,
-                         flex:'0 0 auto', cursor:'pointer' }}>
+            {/* Row 1: role + source toggle */}
+            <div style={{ display:'flex', gap:5, marginBottom:6, alignItems:'center' }}>
+              <select value={slot.role} onChange={e => updateSlot(i, { role: e.target.value })}
+                style={{ background:'var(--bg3)', border:'1px solid var(--border)', borderRadius:4,
+                         padding:'4px 6px', color:'var(--gold)', fontFamily:'var(--display)',
+                         fontSize:13, fontWeight:600, cursor:'pointer', flex:'0 0 auto' }}>
                 {CREW_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
               </select>
-              <select value={slot.characterId} onChange={e => updateSlot(i, 'characterId', e.target.value)}
-                style={{ flex:1, background:'var(--bg3)', border:'1px solid var(--border)',
-                         borderRadius:4, padding:'4px 6px', color:'var(--text)',
-                         fontFamily:'var(--mono)', fontSize:13, cursor:'pointer' }}>
-                <option value="">— NPC / unnamed —</option>
-                {characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              {/* NPC / PC toggle */}
+              <div style={{ display:'flex', borderRadius:4, overflow:'hidden',
+                            border:'1px solid var(--border)', flex:'0 0 auto' }}>
+                {[{val:true,label:'NPC'},{val:false,label:'PC'}].map(opt => (
+                  <button key={String(opt.val)}
+                    onClick={() => updateSlot(i, { useNpc: opt.val, npcKey:'', characterId:'' })}
+                    style={{ padding:'3px 8px', border:'none', cursor:'pointer',
+                             fontFamily:'var(--mono)', fontSize:12,
+                             background: slot.useNpc === opt.val
+                               ? (opt.val ? 'rgba(192,57,43,0.2)' : 'rgba(212,172,13,0.2)')
+                               : 'var(--bg3)',
+                             color: slot.useNpc === opt.val ? typeCol : 'var(--text-dim)' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <button onClick={() => removeSlot(i)}
                 style={{ background:'none', border:'none', color:'var(--red)',
-                         fontSize:18, cursor:'pointer', lineHeight:1 }}>×</button>
+                         fontSize:18, cursor:'pointer', lineHeight:1, marginLeft:'auto' }}>×</button>
             </div>
-            {ch && (
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
-                {[['Brawn','Brawn'],['Agility','Agility'],['Intellect','Intellect'],
-                  ['Cunning','Cunning'],['Willpower','Willpower'],['Presence','Presence']].map(([lbl,key]) => (
-                  <div key={key} style={{ background:'var(--bg3)', borderRadius:4,
-                                           padding:'4px 6px', textAlign:'center' }}>
-                    <div style={{ fontSize:10, fontFamily:'var(--mono)', color:'var(--text-dim)',
-                                  textTransform:'uppercase', letterSpacing:'0.08em' }}>{lbl.slice(0,3)}</div>
-                    <div style={{ fontSize:16, fontFamily:'var(--display)', fontWeight:700,
-                                  color:'var(--text-bright)' }}>
-                      {ch.characteristics?.[key] ?? '—'}
-                    </div>
+
+            {/* Row 2: NPC or PC selector */}
+            {slot.useNpc ? (
+              <select value={slot.npcKey} onChange={e => updateSlot(i, { npcKey: e.target.value })}
+                style={{ width:'100%', background:'var(--bg3)', border:'1px solid var(--border)',
+                         borderRadius:4, padding:'5px 7px', color:'var(--text)',
+                         fontFamily:'var(--mono)', fontSize:13, cursor:'pointer', marginBottom:6 }}>
+                <option value="">— unnamed crew —</option>
+                {npcEntries.map(([key, n]) => (
+                  <option key={key} value={key}>{n.name} ({n.type})</option>
+                ))}
+              </select>
+            ) : (
+              <select value={slot.characterId} onChange={e => updateSlot(i, { characterId: e.target.value })}
+                style={{ width:'100%', background:'var(--bg3)', border:'1px solid var(--border)',
+                         borderRadius:4, padding:'5px 7px', color:'var(--text)',
+                         fontFamily:'var(--mono)', fontSize:13, cursor:'pointer', marginBottom:6 }}>
+                <option value="">— select character —</option>
+                {characters.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+
+            {/* Row 3: key combat skills for space */}
+            {hasResolve && (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4, marginBottom: wounds ? 5 : 0 }}>
+                {[
+                  { lbl:'GUNNERY', val: gunnery, col:'var(--red)', char: agility !== null ? `Ag ${agility}` : '' },
+                  { lbl:'PILOT (SPC)', val: piloting, col:'var(--gold)', char: agility !== null ? `Ag ${agility}` : '' },
+                  { lbl:'MECHANICS', val: mechanics, col:'#2E86C1', char: intellect !== null ? `Int ${intellect}` : '' },
+                ].map(({ lbl, val, col, char }) => (
+                  <div key={lbl} style={{ background:'var(--bg3)', borderRadius:4, padding:'5px 6px', textAlign:'center',
+                                          border:`1px solid ${val > 0 ? col + '55' : 'var(--border)'}` }}>
+                    <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)',
+                                  textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>{lbl}</div>
+                    <div style={{ fontSize:18, fontFamily:'var(--display)', fontWeight:700,
+                                  color: val > 0 ? col : 'var(--text-dim)' }}>{val}</div>
+                    {char && (
+                      <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>{char}</div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-            {ch && (
-              <div style={{ display:'flex', gap:6, marginTop:6 }}>
-                <div style={{ flex:1, background:'rgba(192,57,43,0.1)', border:'1px solid rgba(192,57,43,0.3)',
-                               borderRadius:4, padding:'4px 8px', textAlign:'center' }}>
-                  <div style={{ fontSize:10, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>WOUNDS</div>
-                  <div style={{ fontFamily:'var(--mono)', fontSize:14, color:'#E67E22' }}>
-                    {ch.wounds ?? 0}/{ch.woundThreshold ?? 12}
+
+            {/* Row 4: full char grid for NPCs */}
+            {npc && (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:3, marginTop:5 }}>
+                {[['Br',npc.brawn],['Ag',npc.agility],['Int',npc.intellect],
+                  ['Cu',npc.cunning],['Wi',npc.willpower],['Pr',npc.presence]].map(([lbl,val]) => (
+                  <div key={lbl} style={{ background:'rgba(255,255,255,0.03)', borderRadius:3,
+                                           padding:'3px 4px', textAlign:'center' }}>
+                    <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>{lbl}</div>
+                    <div style={{ fontSize:13, fontFamily:'var(--display)', fontWeight:700,
+                                  color:'var(--text-bright)' }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Row 4: wounds/strain for PCs */}
+            {pc && (
+              <div style={{ display:'flex', gap:5, marginTop:5 }}>
+                <div style={{ flex:1, background:'rgba(192,57,43,0.08)', border:'1px solid rgba(192,57,43,0.25)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>WOUNDS</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:13, color:'#E67E22' }}>
+                    {pc.wounds ?? 0}/{pc.woundThreshold ?? 12}
                   </div>
                 </div>
-                <div style={{ flex:1, background:'rgba(46,134,193,0.1)', border:'1px solid rgba(46,134,193,0.3)',
-                               borderRadius:4, padding:'4px 8px', textAlign:'center' }}>
-                  <div style={{ fontSize:10, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>STRAIN</div>
-                  <div style={{ fontFamily:'var(--mono)', fontSize:14, color:'#2E86C1' }}>
-                    {ch.strain ?? 0}/{ch.strainThreshold ?? 12}
+                <div style={{ flex:1, background:'rgba(46,134,193,0.08)', border:'1px solid rgba(46,134,193,0.25)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>STRAIN</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:13, color:'#2E86C1' }}>
+                    {pc.strain ?? 0}/{pc.strainThreshold ?? 12}
                   </div>
                 </div>
-                {ch.skills?.Piloting_Space !== undefined && (
-                  <div style={{ flex:1, background:'rgba(212,172,13,0.1)', border:'1px solid rgba(212,172,13,0.3)',
-                                 borderRadius:4, padding:'4px 8px', textAlign:'center' }}>
-                    <div style={{ fontSize:10, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>PILOT SKL</div>
-                    <div style={{ fontFamily:'var(--mono)', fontSize:14, color:'var(--gold)' }}>
-                      {ch.skills?.Piloting_Space ?? 0}
-                    </div>
+                <div style={{ flex:1, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>SOAK</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:13, color:'var(--text-bright)' }}>
+                    {pc.soak ?? 2}
                   </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            {/* NPC wound threshold */}
+            {npc && (
+              <div style={{ display:'flex', gap:5, marginTop:5 }}>
+                <div style={{ flex:1, background:'rgba(192,57,43,0.08)', border:'1px solid rgba(192,57,43,0.25)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>W. THRESHOLD</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:13, color:'#E67E22' }}>{npc.woundThreshold}</div>
+                </div>
+                <div style={{ flex:1, background:'rgba(255,255,255,0.03)', border:'1px solid var(--border)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>SOAK</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:13, color:'var(--text-bright)' }}>{npc.soak}</div>
+                </div>
+                <div style={{ flex:1, background:'rgba(155,89,182,0.08)', border:'1px solid rgba(155,89,182,0.25)',
+                               borderRadius:4, padding:'3px 6px', textAlign:'center' }}>
+                  <div style={{ fontSize:9, fontFamily:'var(--mono)', color:'var(--text-dim)' }}>TYPE</div>
+                  <div style={{ fontFamily:'var(--mono)', fontSize:11, color:'#9B59B6',
+                                fontWeight:700, letterSpacing:'0.04em' }}>{npc.type}</div>
+                </div>
               </div>
             )}
           </div>
