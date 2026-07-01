@@ -968,7 +968,7 @@ export const NPC_STATS: Record<string,{
     brawn:2,agility:3,intellect:1,cunning:2,willpower:1,presence:2,
     soak:4,woundThreshold:5,
     defense:{ranged:0,melee:0},
-    skills:[{name:"Cool",rank:1},{name:"Ranged (Heavy)",rank:2},{name:"Ranged (Light)",rank:2},{name:"Gunnery",rank:2},{name:"Piloting (Space)",rank:2}],
+    skills:[{name:"Cool",rank:1},{name:"Ranged (Heavy)",rank:1},{name:"Ranged (Light)",rank:1},{name:"Gunnery",rank:1},{name:"Piloting (Space)",rank:1}],
     talents:[],
     weapons:[
       {name:"Blaster Carbine",damage:"9",critical:3,range:"Medium",qualities:"Stun Setting"},
@@ -1006,7 +1006,7 @@ export const NPC_STATS: Record<string,{
     brawn:2,agility:3,intellect:2,cunning:2,willpower:2,presence:2,
     soak:2,woundThreshold:5,
     defense:{ranged:0,melee:0},
-    skills:[{name:"Gunnery",rank:2},{name:"Piloting (Space)",rank:2}],
+    skills:[{name:"Gunnery",rank:1},{name:"Piloting (Space)",rank:1}],
     talents:[],
     weapons:[
       {name:"Light Blaster Pistol",damage:"5",critical:4,range:"Medium",qualities:"Stun Setting"},
