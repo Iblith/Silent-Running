@@ -187,12 +187,10 @@ function BarTrack({ label, current, threshold, color, onChange }: any) {
 // SHIP TRIANGLE TOKEN  (SVG)
 // angleDeg: 0 = pointing up, rotates clockwise
 // ─────────────────────────────────────────────────────────────────────────────
-function ShipTriangle({ faction, silhouette, selected, dogfighting, angleDeg = 0 }:
-  { faction: string; silhouette: number; selected: boolean; dogfighting: boolean; angleDeg?: number }) {
+function ShipTriangle({ faction, size, selected, dogfighting, angleDeg = 0 }:
+  { faction: string; size: number; selected: boolean; dogfighting: boolean; angleDeg?: number }) {
   const col  = FACTION_COLOR[faction] ?? '#78909c'
-  const size = silhSize(silhouette)
   const half = size / 2
-  // Triangle centred at (half, half), pointing up before rotation
   const pts  = `${half},0 0,${size} ${size},${size}`
   return (
     <svg width={size} height={size} style={{ display:'block', overflow:'visible' }}>
@@ -592,7 +590,7 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm, centerOn }: MapPro
             >
               <ShipTriangle
                 faction={ship.faction}
-                silhouette={ship.silhouette}
+                size={size}
                 selected={ship.id === selectedId}
                 dogfighting={dogfighting}
                 angleDeg={ship.facing ?? 0}
