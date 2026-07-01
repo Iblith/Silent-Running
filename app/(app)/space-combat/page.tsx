@@ -227,7 +227,14 @@ interface MapProps {
 function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
   const [zoom, setZoom]             = useState(1)
   const [pan,  setPan]              = useState({ x: 0, y: 0 })
-  const [drag, setDrag]             = useState<{ shipId: string; startCol: number; startRow: number } | null>(null)
+  const [drag, setDrag]             = useState<{
+    shipId: string
+    startCol: number
+    startRow: number
+    curCol: number
+    curRow: number
+  } | null>(null)
+  const dragRef = useRef<{ shipId:string; startCol:number; startRow:number; curCol:number; curRow:number } | null>(null)
   const [mapDrag, setMapDrag]       = useState<{ startX: number; startY: number; startPan: { x:number; y:number } } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -253,21 +260,27 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
     const ship = ships.find(s => s.id === shipId)!
-    setDrag({ shipId, startCol: ship.col, startRow: ship.row })
+    const next = { shipId, startCol: ship.col, startRow: ship.row, curCol: ship.col, curRow: ship.row }
+    dragRef.current = next
+    setDrag(next)
     onSelect(shipId)
   }
 
   function onShipPointerMove(e: React.PointerEvent) {
-    if (!drag || !containerRef.current) return
+    if (!dragRef.current || !containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left - pan.x
     const y = e.clientY - rect.top  - pan.y
     const col = clamp(Math.floor(x / cell), 0, GRID - 1)
     const row = clamp(Math.floor(y / cell), 0, GRID - 1)
-    onMove(drag.shipId, col, row)
+    const next = { ...dragRef.current, curCol: col, curRow: row }
+    dragRef.current = next
+    setDrag(next)
+    onMove(dragRef.current.shipId, col, row)
   }
 
   function onShipPointerUp() {
+    dragRef.current = null
     setDrag(null)
   }
 
@@ -373,6 +386,104 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
                 </rect>
               )
             })}
+
+            {/* ── Drag Ruler ── */}
+            {(() => {
+              if (!drag || (drag.startCol === drag.curCol && drag.startRow === drag.curRow)) return null
+
+              // Chebyshev distance (max of col/row delta) — standard EotE range band proxy
+              const dCol = drag.curCol - drag.startCol
+              const dRow = drag.curRow - drag.startRow
+              const totalDist = Math.max(Math.abs(dCol), Math.abs(dRow))
+              if (totalDist === 0) return null
+
+              // Cell centres
+              const x1 = drag.startCol * cell + cell / 2
+              const y1 = drag.startRow * cell + cell / 2
+              const x2 = drag.curCol   * cell + cell / 2
+              const y2 = drag.curRow   * cell + cell / 2
+
+              // Waypoints at each integer step along the line
+              const waypoints: { x: number; y: number; dist: number }[] = []
+              for (let d = 1; d <= totalDist; d++) {
+                const t = d / totalDist
+                waypoints.push({
+                  x: x1 + (x2 - x1) * t,
+                  y: y1 + (y2 - y1) * t,
+                  dist: d,
+                })
+              }
+
+              const rulerColor = '#00BCD4'
+              const labelBg    = 'rgba(4,6,12,0.82)'
+              const dotR       = Math.max(3, 4 * zoom)
+              const fontSize   = Math.max(9, 11 * zoom)
+
+              return (
+                <g>
+                  {/* Shadow line for contrast */}
+                  <line x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke="rgba(0,0,0,0.5)" strokeWidth={3 * zoom} strokeLinecap="round"/>
+                  {/* Main ruler line */}
+                  <line x1={x1} y1={y1} x2={x2} y2={y2}
+                    stroke={rulerColor} strokeWidth={1.5 * zoom}
+                    strokeDasharray={`${4*zoom} ${3*zoom}`} strokeLinecap="round"/>
+                  {/* Origin dot */}
+                  <circle cx={x1} cy={y1} r={dotR} fill={rulerColor} opacity={0.7}/>
+                  {/* Destination dot */}
+                  <circle cx={x2} cy={y2} r={dotR + 1} fill={rulerColor}/>
+
+                  {/* Per-step waypoint dots + distance labels */}
+                  {waypoints.map(wp => {
+                    const isLast = wp.dist === totalDist
+                    const lx = wp.x + 6 * zoom
+                    const ly = wp.y - 6 * zoom
+                    return (
+                      <g key={wp.dist}>
+                        {!isLast && (
+                          <circle cx={wp.x} cy={wp.y} r={dotR * 0.7}
+                            fill={rulerColor} opacity={0.5}/>
+                        )}
+                        {/* Label box */}
+                        <rect x={lx - 1} y={ly - fontSize * 0.85}
+                          width={fontSize * (wp.dist >= 10 ? 1.8 : 1.3)}
+                          height={fontSize * 1.1}
+                          rx={2} fill={labelBg}/>
+                        <text x={lx} y={ly}
+                          fill={isLast ? '#fff' : rulerColor}
+                          fontSize={fontSize}
+                          fontFamily="'Share Tech Mono', monospace"
+                          fontWeight={isLast ? 700 : 400}>
+                          {wp.dist}
+                        </text>
+                      </g>
+                    )
+                  })}
+
+                  {/* Total distance badge near destination */}
+                  {totalDist > 0 && (() => {
+                    const bx = x2 + cell * 0.15
+                    const by = y2 - cell * 0.15
+                    const pad = 4 * zoom
+                    const bfs = Math.max(10, 13 * zoom)
+                    const bw  = bfs * (totalDist >= 10 ? 2.2 : 1.6) + pad * 2
+                    const bh  = bfs + pad * 2
+                    return (
+                      <g>
+                        <rect x={bx} y={by - bh * 0.8} width={bw} height={bh}
+                          rx={3} fill={rulerColor} opacity={0.92}/>
+                        <text x={bx + pad} y={by + pad * 0.3}
+                          fill="#000" fontSize={bfs}
+                          fontFamily="'Share Tech Mono', monospace"
+                          fontWeight={700}>
+                          {totalDist}
+                        </text>
+                      </g>
+                    )
+                  })()}
+                </g>
+              )
+            })()}
           </svg>
 
           {/* Coordinate labels every 5 */}
