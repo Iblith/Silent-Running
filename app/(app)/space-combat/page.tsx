@@ -81,8 +81,8 @@ const FACTION_COLOR: Record<string, string> = {
 
 // Triangle size scales with silhouette
 function silhSize(sil: number): number {
-  // sil 1 = 14px, sil 10 = 38px
-  return 14 + (sil - 1) * (24 / 9)
+  // sil 1=16  sil 2=24  sil 3=34  sil 4=48  sil 5=66  sil 6=90  sil 7=120  sil 8=160  sil 9=210  sil 10=270
+  return Math.round(16 * Math.pow(1.37, sil - 1))
 }
 
 function newShip(overrides: Partial<SpaceShip> = {}): SpaceShip {
@@ -187,8 +187,8 @@ function BarTrack({ label, current, threshold, color, onChange }: any) {
 // SHIP TRIANGLE TOKEN  (SVG)
 // angleDeg: 0 = pointing up, rotates clockwise
 // ─────────────────────────────────────────────────────────────────────────────
-function ShipTriangle({ faction, silhouette, selected, dogfighting, angleDeg }:
-  { faction: string; silhouette: number; selected: boolean; dogfighting: boolean; angleDeg: number }) {
+function ShipTriangle({ faction, silhouette, selected, dogfighting, angleDeg = 0 }:
+  { faction: string; silhouette: number; selected: boolean; dogfighting: boolean; angleDeg?: number }) {
   const col  = FACTION_COLOR[faction] ?? '#78909c'
   const size = silhSize(silhouette)
   const half = size / 2
