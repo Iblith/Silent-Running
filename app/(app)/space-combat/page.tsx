@@ -228,9 +228,10 @@ interface MapProps {
   onSelect: (id: string | null) => void
   onMove: (id: string, col: number, row: number, facing?: number) => void
   isGm: boolean
+  centerOn: { col: number; row: number; key: number } | null
 }
 
-function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
+function GridMap({ ships, selectedId, onSelect, onMove, isGm, centerOn }: MapProps) {
   const [zoom, setZoom]             = useState(1)
   const [pan,  setPan]              = useState({ x: 0, y: 0 })
   const [drag, setDrag]             = useState<{
@@ -247,6 +248,16 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
   const cell = CELL * zoom
 
   function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
+
+  // Centre viewport on a ship when requested from the list panel
+  useEffect(() => {
+    if (!centerOn || !containerRef.current) return
+    const { width, height } = containerRef.current.getBoundingClientRect()
+    setPan({
+      x: width  / 2 - (centerOn.col + 0.5) * cell,
+      y: height / 2 - (centerOn.row + 0.5) * cell,
+    })
+  }, [centerOn])
 
   // Zoom with scroll wheel
   const onWheel = useCallback((e: React.WheelEvent) => {
@@ -277,8 +288,8 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
     const rect = containerRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left - pan.x
     const y = e.clientY - rect.top  - pan.y
-    const col = clamp(Math.floor(x / cell), 0, GRID - 1)
-    const row = clamp(Math.floor(y / cell), 0, GRID - 1)
+    const col = Math.floor(x / cell)
+    const row = Math.floor(y / cell)
     const next = { ...dragRef.current, curCol: col, curRow: row }
     dragRef.current = next
     setDrag(next)
@@ -1308,6 +1319,7 @@ export default function SpaceCombatPage() {
   const [loading,    setLoading]    = useState(true)
   const [saving,     setSaving]     = useState(false)
   const [isGm,       setIsGm]       = useState(false)
+  const [centerOn,   setCenterOn]   = useState<{ col: number; row: number; key: number } | null>(null)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1423,7 +1435,13 @@ export default function SpaceCombatPage() {
         <ShipListPanel
           ships={ships}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={id => {
+            setSelectedId(id)
+            if (id) {
+              const ship = ships.find(s => s.id === id)
+              if (ship) setCenterOn({ col: ship.col, row: ship.row, key: Date.now() })
+            }
+          }}
           onAdd={addShip}
           isGm={isGm}
         />
@@ -1434,6 +1452,7 @@ export default function SpaceCombatPage() {
           onSelect={id => setSelectedId(id)}
           onMove={moveShip}
           isGm={isGm}
+          centerOn={centerOn}
         />
 
         {selectedShip && (
