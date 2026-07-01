@@ -338,7 +338,49 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
     return m
   }, [ships])
 
-  const totalSize = GRID * cell
+  // ── Infinite grid helpers ──
+  // We read viewport size via ref to avoid a resize listener
+  const [vpSize, setVpSize] = useState({ w: 1200, h: 800 })
+  const vpRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
+    const ro = new ResizeObserver(entries => {
+      const e = entries[0]
+      setVpSize({ w: e.contentRect.width, h: e.contentRect.height })
+    })
+    ro.observe(node)
+  }, [])
+
+  // Convert world col/row → screen pixel (top-left of that cell)
+  function worldToScreen(col: number, row: number) {
+    return { x: pan.x + col * cell, y: pan.y + row * cell }
+  }
+
+  // Convert screen pixel → world col/row
+  function screenToWorld(sx: number, sy: number) {
+    return {
+      col: Math.floor((sx - pan.x) / cell),
+      row: Math.floor((sy - pan.y) / cell),
+    }
+  }
+
+  // Visible grid line ranges
+  const firstCol = Math.floor(-pan.x / cell) - 1
+  const firstRow = Math.floor(-pan.y / cell) - 1
+  const lastCol  = firstCol + Math.ceil(vpSize.w / cell) + 2
+  const lastRow  = firstRow + Math.ceil(vpSize.h / cell) + 2
+
+  // Coordinate label positions (every 5 world units, only if on screen)
+  const coordLabels: { wx: number; wy: number; screenX: number; screenY: number; label: string }[] = []
+  const step5Col = Math.ceil(firstCol / 5) * 5
+  const step5Row = Math.ceil(firstRow / 5) * 5
+  for (let c = step5Col; c <= lastCol; c += 5) {
+    const sx = pan.x + c * cell
+    coordLabels.push({ wx: c, wy: firstRow, screenX: sx + 2, screenY: 14, label: String(c) })
+  }
+  for (let r = step5Row; r <= lastRow; r += 5) {
+    const sy = pan.y + r * cell
+    coordLabels.push({ wx: firstCol, wy: r, screenX: 4, screenY: sy + 12, label: String(r) })
+  }
 
   return (
     <div style={{ flex:1, overflow:'hidden', position:'relative', background:'#04060C' }}>
@@ -362,222 +404,209 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
         Alt+drag to pan • scroll to zoom {isGm ? '• drag tokens to move' : ''}
       </div>
 
-      {/* Canvas */}
+      {/* Viewport — pointer events here */}
       <div
-        ref={containerRef}
+        ref={(node) => { (containerRef as any).current = node; vpRef(node) }}
         onWheel={onWheel}
         onPointerDown={onMapPointerDown}
         onPointerMove={e => { onMapPointerMove(e); onShipPointerMove(e) }}
         onPointerUp={e => { onMapPointerUp(); onShipPointerUp() }}
         onClick={onGridClick}
-        style={{ width:'100%', height:'100%', cursor: mapDrag ? 'grabbing' : 'crosshair', userSelect:'none', overflow:'hidden' }}
+        style={{ width:'100%', height:'100%', cursor: mapDrag ? 'grabbing' : 'crosshair',
+                 userSelect:'none', overflow:'hidden', position:'relative' }}
       >
-        <div style={{ position:'relative', transform:`translate(${pan.x}px,${pan.y}px)`, width: totalSize, height: totalSize }}>
-
-          {/* Grid lines */}
-          <svg
-            width={totalSize} height={totalSize}
-            style={{ position:'absolute', top:0, left:0, pointerEvents:'none' }}
-          >
-            {/* Major lines every 5 */}
-            {Array.from({ length: GRID + 1 }).map((_, i) => (
-              <React.Fragment key={i}>
-                <line x1={i * cell} y1={0} x2={i * cell} y2={totalSize}
-                  stroke={i % 5 === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
-                  strokeWidth={i % 5 === 0 ? 0.8 : 0.5}/>
-                <line x1={0} y1={i * cell} x2={totalSize} y2={i * cell}
-                  stroke={i % 5 === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
-                  strokeWidth={i % 5 === 0 ? 0.8 : 0.5}/>
-              </React.Fragment>
-            ))}
-            {/* Dogfighting cell highlights */}
-            {Object.entries(byCell).map(([key, cellShips]) => {
-              if (cellShips.length < 2) return null
-              const hasFighters = cellShips.some(s => s.silhouette === 1)
-              if (!hasFighters) return null
-              const hasOpposites = cellShips.some(s => s.faction === 'player' || s.faction === 'neutral') &&
-                                   cellShips.some(s => s.faction === 'enemy')
-              if (!hasOpposites) return null
-              const [c, r] = key.split(',').map(Number)
-              return (
-                <rect key={key} x={c * cell} y={r * cell} width={cell} height={cell}
-                  fill="rgba(155,89,182,0.1)" stroke="rgba(155,89,182,0.6)"
-                  strokeWidth={1.5} strokeDasharray="4 3">
-                  <animate attributeName="stroke-opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite"/>
-                </rect>
-              )
-            })}
-
-            {/* ── Drag Ruler ── */}
-            {(() => {
-              if (!drag || (drag.startCol === drag.curCol && drag.startRow === drag.curRow)) return null
-
-              // Chebyshev distance (max of col/row delta) — standard EotE range band proxy
-              const dCol = drag.curCol - drag.startCol
-              const dRow = drag.curRow - drag.startRow
-              const totalDist = Math.max(Math.abs(dCol), Math.abs(dRow))
-              if (totalDist === 0) return null
-
-              // Cell centres
-              const x1 = drag.startCol * cell + cell / 2
-              const y1 = drag.startRow * cell + cell / 2
-              const x2 = drag.curCol   * cell + cell / 2
-              const y2 = drag.curRow   * cell + cell / 2
-
-              // Waypoints at each integer step along the line
-              const waypoints: { x: number; y: number; dist: number }[] = []
-              for (let d = 1; d <= totalDist; d++) {
-                const t = d / totalDist
-                waypoints.push({
-                  x: x1 + (x2 - x1) * t,
-                  y: y1 + (y2 - y1) * t,
-                  dist: d,
-                })
-              }
-
-              const rulerColor = '#00BCD4'
-              const labelBg    = 'rgba(4,6,12,0.82)'
-              const dotR       = Math.max(3, 4 * zoom)
-              const fontSize   = Math.max(9, 11 * zoom)
-
-              return (
-                <g>
-                  {/* Shadow line for contrast */}
-                  <line x1={x1} y1={y1} x2={x2} y2={y2}
-                    stroke="rgba(0,0,0,0.5)" strokeWidth={3 * zoom} strokeLinecap="round"/>
-                  {/* Main ruler line */}
-                  <line x1={x1} y1={y1} x2={x2} y2={y2}
-                    stroke={rulerColor} strokeWidth={1.5 * zoom}
-                    strokeDasharray={`${4*zoom} ${3*zoom}`} strokeLinecap="round"/>
-                  {/* Origin dot */}
-                  <circle cx={x1} cy={y1} r={dotR} fill={rulerColor} opacity={0.7}/>
-                  {/* Destination dot */}
-                  <circle cx={x2} cy={y2} r={dotR + 1} fill={rulerColor}/>
-
-                  {/* Per-step waypoint dots + distance labels */}
-                  {waypoints.map(wp => {
-                    const isLast = wp.dist === totalDist
-                    const lx = wp.x + 6 * zoom
-                    const ly = wp.y - 6 * zoom
-                    return (
-                      <g key={wp.dist}>
-                        {!isLast && (
-                          <circle cx={wp.x} cy={wp.y} r={dotR * 0.7}
-                            fill={rulerColor} opacity={0.5}/>
-                        )}
-                        {/* Label box */}
-                        <rect x={lx - 1} y={ly - fontSize * 0.85}
-                          width={fontSize * (wp.dist >= 10 ? 1.8 : 1.3)}
-                          height={fontSize * 1.1}
-                          rx={2} fill={labelBg}/>
-                        <text x={lx} y={ly}
-                          fill={isLast ? '#fff' : rulerColor}
-                          fontSize={fontSize}
-                          fontFamily="'Share Tech Mono', monospace"
-                          fontWeight={isLast ? 700 : 400}>
-                          {wp.dist}
-                        </text>
-                      </g>
-                    )
-                  })}
-
-                  {/* Total distance badge near destination */}
-                  {totalDist > 0 && (() => {
-                    const bx = x2 + cell * 0.15
-                    const by = y2 - cell * 0.15
-                    const pad = 4 * zoom
-                    const bfs = Math.max(10, 13 * zoom)
-                    const bw  = bfs * (totalDist >= 10 ? 2.2 : 1.6) + pad * 2
-                    const bh  = bfs + pad * 2
-                    return (
-                      <g>
-                        <rect x={bx} y={by - bh * 0.8} width={bw} height={bh}
-                          rx={3} fill={rulerColor} opacity={0.92}/>
-                        <text x={bx + pad} y={by + pad * 0.3}
-                          fill="#000" fontSize={bfs}
-                          fontFamily="'Share Tech Mono', monospace"
-                          fontWeight={700}>
-                          {totalDist}
-                        </text>
-                      </g>
-                    )
-                  })()}
-                </g>
-              )
-            })()}
-          </svg>
-
-          {/* Coordinate labels every 5 */}
-          {Array.from({ length: Math.ceil(GRID / 5) }).map((_, i) => {
-            const v = i * 5
+        {/* ── Infinite grid SVG (viewport-sized, no transform) ── */}
+        <svg
+          width={vpSize.w} height={vpSize.h}
+          style={{ position:'absolute', top:0, left:0, pointerEvents:'none' }}
+        >
+          {/* Minor lines */}
+          {Array.from({ length: lastCol - firstCol + 1 }).map((_, i) => {
+            const c  = firstCol + i
+            const sx = pan.x + c * cell
+            const major = c % 5 === 0
             return (
-              <React.Fragment key={i}>
-                <div style={{ position:'absolute', left: v * cell + 2, top:2,
-                              fontSize: Math.max(8, 10 * zoom), color:'rgba(255,255,255,0.2)',
-                              fontFamily:'var(--mono)', pointerEvents:'none', lineHeight:1 }}>{v}</div>
-                <div style={{ position:'absolute', left:2, top: v * cell + 2,
-                              fontSize: Math.max(8, 10 * zoom), color:'rgba(255,255,255,0.2)',
-                              fontFamily:'var(--mono)', pointerEvents:'none', lineHeight:1 }}>{v}</div>
-              </React.Fragment>
+              <line key={`v${c}`} x1={sx} y1={0} x2={sx} y2={vpSize.h}
+                stroke={major ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
+                strokeWidth={major ? 0.8 : 0.5}/>
+            )
+          })}
+          {Array.from({ length: lastRow - firstRow + 1 }).map((_, i) => {
+            const r  = firstRow + i
+            const sy = pan.y + r * cell
+            const major = r % 5 === 0
+            return (
+              <line key={`h${r}`} x1={0} y1={sy} x2={vpSize.w} y2={sy}
+                stroke={major ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
+                strokeWidth={major ? 0.8 : 0.5}/>
             )
           })}
 
-          {/* Ship tokens */}
-          {ships.map(ship => {
-            const size   = silhSize(ship.silhouette) * zoom
-            const cellShips = byCell[`${ship.col},${ship.row}`] ?? []
-            const dogfighting = cellShips.length >= 2 &&
-              cellShips.some(s => s.faction === 'player' || s.faction === 'neutral') &&
-              cellShips.some(s => s.faction === 'enemy') &&
-              ship.silhouette === 1
+          {/* Dogfighting cell highlights */}
+          {Object.entries(byCell).map(([key, cellShips]) => {
+            if (cellShips.length < 2) return null
+            const hasFighters = cellShips.some(s => s.silhouette === 1)
+            if (!hasFighters) return null
+            const hasOpposites = cellShips.some(s => s.faction === 'player' || s.faction === 'neutral') &&
+                                 cellShips.some(s => s.faction === 'enemy')
+            if (!hasOpposites) return null
+            const [c, r] = key.split(',').map(Number)
+            const sx = pan.x + c * cell
+            const sy = pan.y + r * cell
+            if (sx > vpSize.w || sy > vpSize.h || sx + cell < 0 || sy + cell < 0) return null
+            return (
+              <rect key={key} x={sx} y={sy} width={cell} height={cell}
+                fill="rgba(155,89,182,0.1)" stroke="rgba(155,89,182,0.6)"
+                strokeWidth={1.5} strokeDasharray="4 3">
+                <animate attributeName="stroke-opacity" values="0.6;0.2;0.6" dur="1.5s" repeatCount="indefinite"/>
+              </rect>
+            )
+          })}
 
-            // Stack sil-1 ships within the same cell
-            const stackIdx = cellShips.filter(s => s.silhouette === 1).findIndex(s => s.id === ship.id)
-            const stackOffset = ship.silhouette === 1 && stackIdx > 0 ? stackIdx * (size * 0.4) : 0
+          {/* ── Drag Ruler ── */}
+          {(() => {
+            if (!drag || (drag.startCol === drag.curCol && drag.startRow === drag.curRow)) return null
+            const dCol = drag.curCol - drag.startCol
+            const dRow = drag.curRow - drag.startRow
+            const totalDist = Math.max(Math.abs(dCol), Math.abs(dRow))
+            if (totalDist === 0) return null
 
-            const cx = ship.col * cell + cell / 2 - size / 2 + stackOffset
-            const cy = ship.row * cell + cell / 2 - size / 2
+            // Screen coords of cell centres
+            const x1 = pan.x + drag.startCol * cell + cell / 2
+            const y1 = pan.y + drag.startRow * cell + cell / 2
+            const x2 = pan.x + drag.curCol   * cell + cell / 2
+            const y2 = pan.y + drag.curRow   * cell + cell / 2
+
+            const waypoints: { x: number; y: number; dist: number }[] = []
+            for (let d = 1; d <= totalDist; d++) {
+              const t = d / totalDist
+              waypoints.push({ x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t, dist: d })
+            }
+
+            const rulerColor = '#00BCD4'
+            const labelBg    = 'rgba(4,6,12,0.82)'
+            const dotR       = Math.max(3, 4 * zoom)
+            const fontSize   = Math.max(9, 11 * zoom)
 
             return (
-              <div
-                key={ship.id}
-                data-ship={ship.id}
-                onPointerDown={e => onShipPointerDown(e, ship.id)}
-                style={{
+              <g>
+                <line x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke="rgba(0,0,0,0.5)" strokeWidth={3 * zoom} strokeLinecap="round"/>
+                <line x1={x1} y1={y1} x2={x2} y2={y2}
+                  stroke={rulerColor} strokeWidth={1.5 * zoom}
+                  strokeDasharray={`${4*zoom} ${3*zoom}`} strokeLinecap="round"/>
+                <circle cx={x1} cy={y1} r={dotR} fill={rulerColor} opacity={0.7}/>
+                <circle cx={x2} cy={y2} r={dotR + 1} fill={rulerColor}/>
+                {waypoints.map(wp => {
+                  const isLast = wp.dist === totalDist
+                  const lx = wp.x + 6 * zoom
+                  const ly = wp.y - 6 * zoom
+                  return (
+                    <g key={wp.dist}>
+                      {!isLast && (
+                        <circle cx={wp.x} cy={wp.y} r={dotR * 0.7} fill={rulerColor} opacity={0.5}/>
+                      )}
+                      <rect x={lx - 1} y={ly - fontSize * 0.85}
+                        width={fontSize * (wp.dist >= 10 ? 1.8 : 1.3)} height={fontSize * 1.1}
+                        rx={2} fill={labelBg}/>
+                      <text x={lx} y={ly} fill={isLast ? '#fff' : rulerColor}
+                        fontSize={fontSize} fontFamily="'Share Tech Mono', monospace"
+                        fontWeight={isLast ? 700 : 400}>{wp.dist}</text>
+                    </g>
+                  )
+                })}
+                {(() => {
+                  const bx  = x2 + cell * 0.15
+                  const by  = y2 - cell * 0.15
+                  const pad = 4 * zoom
+                  const bfs = Math.max(10, 13 * zoom)
+                  const bw  = bfs * (totalDist >= 10 ? 2.2 : 1.6) + pad * 2
+                  const bh  = bfs + pad * 2
+                  return (
+                    <g>
+                      <rect x={bx} y={by - bh * 0.8} width={bw} height={bh}
+                        rx={3} fill={rulerColor} opacity={0.92}/>
+                      <text x={bx + pad} y={by + pad * 0.3} fill="#000"
+                        fontSize={bfs} fontFamily="'Share Tech Mono', monospace" fontWeight={700}>
+                        {totalDist}
+                      </text>
+                    </g>
+                  )
+                })()}
+              </g>
+            )
+          })()}
+        </svg>
+
+        {/* Coordinate labels (every 5 cols/rows) */}
+        {coordLabels.map((lbl, i) => (
+          <div key={i} style={{
+            position:'absolute', left: lbl.screenX, top: lbl.screenY,
+            fontSize: Math.max(8, 10 * zoom), color:'rgba(255,255,255,0.2)',
+            fontFamily:'var(--mono)', pointerEvents:'none', lineHeight:1,
+            transform:'translateY(-100%)',
+          }}>{lbl.label}</div>
+        ))}
+
+        {/* Ship tokens — positioned in screen space */}
+        {ships.map(ship => {
+          const size      = silhSize(ship.silhouette) * zoom
+          const cellShips = byCell[`${ship.col},${ship.row}`] ?? []
+          const dogfighting = cellShips.length >= 2 &&
+            cellShips.some(s => s.faction === 'player' || s.faction === 'neutral') &&
+            cellShips.some(s => s.faction === 'enemy') &&
+            ship.silhouette === 1
+
+          const stackIdx    = cellShips.filter(s => s.silhouette === 1).findIndex(s => s.id === ship.id)
+          const stackOffset = ship.silhouette === 1 && stackIdx > 0 ? stackIdx * (size * 0.4) : 0
+
+          // Screen position: world cell centre minus half token size
+          const sx = pan.x + ship.col * cell + cell / 2 - size / 2 + stackOffset
+          const sy = pan.y + ship.row * cell + cell / 2 - size / 2
+
+          // Cull tokens entirely off screen
+          if (sx + size < 0 || sy + size < 0 || sx > vpSize.w || sy > vpSize.h) return null
+
+          return (
+            <div
+              key={ship.id}
+              data-ship={ship.id}
+              onPointerDown={e => onShipPointerDown(e, ship.id)}
+              style={{
+                position:'absolute',
+                left: sx, top: sy,
+                width: size, height: size,
+                cursor: isGm ? 'grab' : 'pointer',
+                zIndex: ship.id === selectedId ? 20 : 10,
+              }}
+            >
+              <ShipTriangle
+                faction={ship.faction}
+                silhouette={ship.silhouette}
+                selected={ship.id === selectedId}
+                dogfighting={dogfighting}
+                angleDeg={ship.facing ?? 0}
+              />
+              {zoom > 0.5 && (
+                <div style={{
                   position:'absolute',
-                  left: cx, top: cy,
-                  width: size, height: size,
-                  cursor: isGm ? 'grab' : 'pointer',
-                  zIndex: ship.id === selectedId ? 20 : 10,
-                }}
-              >
-                <ShipTriangle
-                  faction={ship.faction}
-                  silhouette={ship.silhouette}
-                  selected={ship.id === selectedId}
-                  dogfighting={dogfighting}
-                />
-                {zoom > 0.5 && (
-                  <div style={{
-                    position:'absolute',
-                    top: size + 2,
-                    left: '50%',
-                    transform:'translateX(-50%)',
-                    whiteSpace:'nowrap',
-                    fontSize: Math.max(9, 11 * zoom),
-                    fontFamily:'var(--display)',
-                    fontWeight:600,
-                    color: FACTION_COLOR[ship.faction] ?? '#78909c',
-                    textShadow:'0 0 4px rgba(0,0,0,0.9)',
-                    pointerEvents:'none',
-                  }}>
-                    {ship.name}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  top: size + 2,
+                  left: '50%',
+                  transform:'translateX(-50%)',
+                  whiteSpace:'nowrap',
+                  fontSize: Math.max(9, 11 * zoom),
+                  fontFamily:'var(--display)',
+                  fontWeight:600,
+                  color: FACTION_COLOR[ship.faction] ?? '#78909c',
+                  textShadow:'0 0 4px rgba(0,0,0,0.9)',
+                  pointerEvents:'none',
+                }}>
+                  {ship.name}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
