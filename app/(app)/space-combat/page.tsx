@@ -81,8 +81,8 @@ const FACTION_COLOR: Record<string, string> = {
 
 // Triangle size scales with silhouette
 function silhSize(sil: number): number {
-  // sil 1=34  sil 2=68  sil 3=136  sil 4=272  sil 5=544 …
-  return 34 * Math.pow(2, sil - 1)
+  // sil 1=16  sil 2=24  sil 3=34  sil 4=48  sil 5=66  sil 6=90  sil 7=120  sil 8=160  sil 9=210  sil 10=270
+  return Math.round(16 * Math.pow(1.37, sil - 1))
 }
 
 function newShip(overrides: Partial<SpaceShip> = {}): SpaceShip {
@@ -305,12 +305,11 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
     setDrag(null)
   }
 
-  // Map pan (middle mouse or when no ship is being dragged)
+  // Map pan: players can left-drag freely; GM needs Alt+left or middle mouse
   function onMapPointerDown(e: React.PointerEvent) {
     if (e.button !== 1 && e.button !== 0) return
     if ((e.target as HTMLElement).closest('[data-ship]')) return
-    // left-click only pans when Alt is held; middle-click always pans
-    if (e.button === 0 && !e.altKey) return
+    if (e.button === 0 && isGm && !e.altKey) return
     e.currentTarget.setPointerCapture(e.pointerId)
     setMapDrag({ startX: e.clientX, startY: e.clientY, startPan: { ...pan } })
   }
@@ -401,7 +400,7 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
       <div style={{ position:'absolute', bottom:8, left:10, zIndex:10,
                     fontFamily:'var(--mono)', fontSize:12, color:'var(--text-dim)',
                     background:'rgba(4,6,12,0.7)', padding:'2px 8px', borderRadius:3 }}>
-        Alt+drag to pan • scroll to zoom {isGm ? '• drag tokens to move' : ''}
+        {isGm ? 'Alt+drag to pan • scroll to zoom • drag tokens to move' : 'Drag to pan • scroll to zoom'}
       </div>
 
       {/* Viewport — pointer events here */}
@@ -412,7 +411,7 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
         onPointerMove={e => { onMapPointerMove(e); onShipPointerMove(e) }}
         onPointerUp={e => { onMapPointerUp(); onShipPointerUp() }}
         onClick={onGridClick}
-        style={{ width:'100%', height:'100%', cursor: mapDrag ? 'grabbing' : 'crosshair',
+        style={{ width:'100%', height:'100%', cursor: mapDrag ? 'grabbing' : isGm ? 'crosshair' : 'grab',
                  userSelect:'none', overflow:'hidden', position:'relative' }}
       >
         {/* ── Infinite grid SVG (viewport-sized, no transform) ── */}

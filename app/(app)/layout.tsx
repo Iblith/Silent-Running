@@ -106,7 +106,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { path:'/ship',        label:'The Ship',     mobileLabel:'Ship',    icon:'◉',  gmOnly:false },
     { path:'/characters',  label: isGm ? 'Characters' : 'My Character', mobileLabel: isGm ? 'Chars' : 'Char', icon:'◈', gmOnly:false },
     { path:'/adversaries',   label:'Adversaries',    mobileLabel:'Enemies', icon:'⚔',  gmOnly:true  },
-    { path:'/space-combat', label:'Space Combat',   mobileLabel:'Space',   icon:'▲',  gmOnly:true  },
+    { path:'/space-combat', label:'Space Combat',   mobileLabel:'Space',   icon:'▲',  gmOnly:false },
     { path:'/datapad',     label:'Datapads',     mobileLabel:'Pads',    icon:'📟', gmOnly:false },
     { path:'/comms',       label:'Ship Comms',   mobileLabel:'Comms',   icon:'◎',  gmOnly:false },
   ]
