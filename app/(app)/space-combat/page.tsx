@@ -81,8 +81,8 @@ const FACTION_COLOR: Record<string, string> = {
 
 // Triangle size scales with silhouette
 function silhSize(sil: number): number {
-  // sil 1=16  sil 2=24  sil 3=34  sil 4=48  sil 5=66  sil 6=90  sil 7=120  sil 8=160  sil 9=210  sil 10=270
-  return Math.round(16 * Math.pow(1.37, sil - 1))
+  // sil 1=34  sil 2=68  sil 3=136  sil 4=272  sil 5=544 …
+  return 34 * Math.pow(2, sil - 1)
 }
 
 function newShip(overrides: Partial<SpaceShip> = {}): SpaceShip {
