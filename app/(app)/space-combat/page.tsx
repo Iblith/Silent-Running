@@ -274,10 +274,8 @@ function GridMap({ ships, selectedId, onSelect, onMove, isGm }: MapProps) {
   function onMapPointerDown(e: React.PointerEvent) {
     if (e.button !== 1 && e.button !== 0) return
     if ((e.target as HTMLElement).closest('[data-ship]')) return
-    if (e.button === 0 && e.button !== 1) {
-      // only pan with middle button or when alt held
-      if (!e.altKey) return
-    }
+    // left-click only pans when Alt is held; middle-click always pans
+    if (e.button === 0 && !e.altKey) return
     e.currentTarget.setPointerCapture(e.pointerId)
     setMapDrag({ startX: e.clientX, startY: e.clientY, startPan: { ...pan } })
   }
